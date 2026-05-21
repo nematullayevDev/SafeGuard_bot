@@ -68,6 +68,13 @@ def register(dp: Dispatcher, c: Container) -> None:
         uid = message.from_user.id
         is_admin_user = is_owner(message)
 
+        if not text:
+            return
+
+        # Slash-buyruqlarga tegmaymiz
+        if text.startswith("/"):
+            return
+
         if text.startswith(("http://", "https://")):
             if c.rate_limiter.hit(uid):
                 await message.answer(_rate_limit_text())
@@ -94,11 +101,46 @@ def register(dp: Dispatcher, c: Container) -> None:
             await message.answer(response, reply_markup=main_menu(is_admin_user))
             return
 
+        # Matnli xabar bo'lsa, IIV AI va NLP tahlilini amalga oshiramiz
+        wait = await message.answer("🔍 IIV AI tahlil tizimi matnni tekshirmoqda...")
+        try:
+            nlp_res = await c.nlp.analyze_text(text)
+            if nlp_res["is_violation"]:
+                await wait.delete()
+                await message.answer(
+                    formatters.nlp_forensic_report(nlp_res, text),
+                    reply_markup=main_menu(is_admin_user),
+                    parse_mode="HTML"
+                )
+                return
+        except Exception as e:
+            logger.error("Matn NLP tahlilida xatolik: %s", e)
+
+        try:
+            await wait.delete()
+        except Exception:
+            pass
+
+        # Eski kalit so'zlar bo'yicha spam tekshiruvi (agar yoqilgan bo'lsa)
         if c.user_settings.get_spam_filter(uid) and c.spam.is_spam(text):
             await message.answer(
                 f"🚫 SPAM ANIQLANDI!\n\n📝 {text[:100]}\n\n"
                 "⚠️ Bu xabar fishing belgilariga ega!",
                 reply_markup=main_menu(is_admin_user),
+            )
+            return
+
+        # Agar foydalanuvchi ma'noli uzunroq matn yozgan bo'lsa, xavfsiz tahlil bayonotini qaytaramiz
+        if len(text.strip()) > 3:
+            safe_res = {
+                "is_violation": False,
+                "category": None,
+                "reason": "Matnda diniy ekstremizm, giyohvand moddalar targ'iboti yoki kiberbulling alomatlari aniqlanmadi (Lokal + AI tahlil)."
+            }
+            await message.answer(
+                formatters.nlp_forensic_report(safe_res, text),
+                reply_markup=main_menu(is_admin_user),
+                parse_mode="HTML"
             )
             return
 
@@ -108,6 +150,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             "📦 APK yoki boshqa fayl",
             reply_markup=main_menu(is_admin_user),
         )
+
 
     dp.message.register(handle_document, F.document, F.chat.type == "private")
     dp.message.register(handle_message, F.chat.type == "private")

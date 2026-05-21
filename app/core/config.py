@@ -16,6 +16,7 @@ class Settings:
     bot_username: str
     db_path: str
     base_dir: Path
+    gemini_api_key: str | None = None
 
     rate_limit_max: int = 5
     rate_limit_window: int = 60
@@ -52,6 +53,7 @@ def _load() -> Settings:
         bot_username=os.getenv("BOT_USERNAME", "safeguard_uz_bot"),
         db_path=str(base / "users.db"),
         base_dir=base,
+        gemini_api_key=os.getenv("GEMINI_API_KEY"),
     )
 
 

@@ -11,6 +11,7 @@ from app.repositories import (
 from app.services import (
     BroadcastService, ExportService, ModerationService,
     RateLimiter, ScanService, SpamDetector, VirusTotalService,
+    UzbekNLPService,
 )
 
 
@@ -34,6 +35,7 @@ class Container:
     moderator: ModerationService
     broadcaster: BroadcastService
     exporter: ExportService
+    nlp: UzbekNLPService
 
 
 def build_container() -> Container:
@@ -53,6 +55,7 @@ def build_container() -> Container:
     moderator = ModerationService(bot, warnings, settings.max_warnings)
     broadcaster = BroadcastService(bot, users)
     exporter = ExportService()
+    nlp = UzbekNLPService(settings.gemini_api_key)
 
     return Container(
         users=users, blacklist=blacklist, user_settings=user_settings,
@@ -60,4 +63,5 @@ def build_container() -> Container:
         banned_sites=banned_sites, stats=stats,
         rate_limiter=rate_limiter, spam=spam, vt=vt, scanner=scanner,
         moderator=moderator, broadcaster=broadcaster, exporter=exporter,
+        nlp=nlp,
     )

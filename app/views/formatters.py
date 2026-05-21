@@ -202,3 +202,62 @@ def banned_sites_empty(platform_title: str, note: str) -> str:
         "━━━━━━━━━━━━━━━━━━━━\n"
         f"{note}"
     )
+
+
+def nlp_violation_warning(category: str, reason: str, sender_mention: str) -> str:
+    cat_label = {
+        "extremism": "🧠 DINIY EKSTREMIZM VA RADIKALIZM",
+        "drugs": "💊 GIYOHVAND MODDALAR SAVDOSI TARG'IBOTI",
+        "bullying": "👤 KIBERBULLING VA HAQORAT TAHDIRI"
+    }.get(category, "⚠️ TAXDIDLI MATN")
+    
+    emoji = {
+        "extremism": "🚨🔴",
+        "drugs": "🚨💊",
+        "bullying": "🚨⚠️"
+    }.get(category, "🚨")
+    
+    return (
+        f"{emoji} <b>XAVFLI MATN ANIQLANDI VA BLOKLANDI!</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>Qonunbuzar:</b> {sender_mention}\n"
+        f"📂 <b>Kategoriya:</b> <code>{cat_label}</code>\n"
+        f"📝 <b>Tahliliy Izoh:</b> <i>{reason}</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"⚠️ <b>Ogohlantirish:</b> Guruhda qonunga xilof materiallar tarqatish taqiqlanadi!"
+    )
+
+
+def nlp_forensic_report(result: dict, raw_text: str) -> str:
+    category = result.get("category")
+    reason = result.get("reason", "Tahlil yakunlandi.")
+    is_viol = result.get("is_violation", False)
+    
+    status_emoji = "🔴 QONUNBUZARLIK ANIQLANDI" if is_viol else "✅ TIZIM XAVFSIZ"
+    status_color = "🚨" if is_viol else "🛡"
+    
+    cat_label = {
+        "extremism": "🧠 Ekstremizm va Radikalizm",
+        "drugs": "💊 Giyohvand moddalar targ'iboti",
+        "bullying": "👤 Kiberbulling va Haqorat"
+    }.get(category, "—")
+    
+    short_text = raw_text[:100] + "..." if len(raw_text) > 100 else raw_text
+    
+    return (
+        f"{status_color} <b>ICHKI ISHLAR VAZIRLIGI KIBER-TAHLIL TIZIMI</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 <b>Ekspertiza Xulosasi:</b>\n"
+        f"  • <b>Holat:</b> <code>{status_emoji}</code>\n"
+        f"  • <b>Kategoriya:</b> <b>{cat_label}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📝 <b>Tekshirilgan matn:</b>\n"
+        f"  <i>\"{short_text}\"</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"🔬 <b>Tahliliy Izoh:</b>\n"
+        f"  <code>{reason}</code>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"📢 <i>IIV Raqamli Ekspertiza va Kiber-Tergov Departamentining monitoring tizimi.</i>"
+    )
+
+

@@ -6,9 +6,10 @@ from app.services.rate_limiter import RateLimiter
 from app.services.scan_service import ScanService
 from app.services.spam_detector import SpamDetector
 from app.services.virustotal_service import VirusTotalService
+from app.services.uzbek_nlp import UzbekNLPService
 
 __all__ = [
     "BroadcastService", "ExportService", "ModerationService",
     "RateLimiter", "ScanService", "SpamDetector", "VirusTotalService",
-    "extract_links",
+    "extract_links", "UzbekNLPService",
 ]
