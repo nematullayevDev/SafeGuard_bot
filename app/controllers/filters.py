@@ -1,0 +1,50 @@
+"""Custom aiogram filters and shared helpers."""
+import logging
+
+from aiogram.filters import BaseFilter
+from aiogram.types import CallbackQuery, Message
+
+from app.container import Container
+from app.core.bot import bot
+from app.core.config import settings
+from app.views.keyboards import go_start_kb
+from app.views.texts import ADMIN_ONLY_ALERT, REGISTER_FIRST
+
+logger = logging.getLogger(__name__)
+
+
+class IsAdmin(BaseFilter):
+    """User is the bot owner."""
+
+    async def __call__(self, event) -> bool:
+        uid = event.from_user.id if event.from_user else 0
+        return uid == settings.admin_id
+
+
+def is_owner(event) -> bool:
+    uid = getattr(event.from_user, "id", 0) if event.from_user else 0
+    return uid == settings.admin_id
+
+
+async def is_chat_admin(message: Message) -> bool:
+    """User is admin/creator of the group."""
+    try:
+        member = await bot.get_chat_member(message.chat.id, message.from_user.id)
+        return member.status in ("administrator", "creator")
+    except Exception as e:
+        logger.warning("get_chat_member xato: %s", e)
+        return False
+
+
+async def ensure_registered(message: Message, container: Container) -> bool:
+    if container.users.is_registered(message.from_user.id):
+        return True
+    await message.answer(REGISTER_FIRST, reply_markup=go_start_kb())
+    return False
+
+
+async def deny_if_not_owner(call: CallbackQuery) -> bool:
+    if not is_owner(call):
+        await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+        return True
+    return False

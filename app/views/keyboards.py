@@ -1,0 +1,183 @@
+"""Inline and reply keyboards."""
+from aiogram.types import (
+    InlineKeyboardButton, InlineKeyboardMarkup,
+    KeyboardButton, ReplyKeyboardMarkup,
+)
+
+from app.core.config import PLATFORMS, settings
+
+
+def phone_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="📱 Raqamimni ulashish", request_contact=True)]],
+        resize_keyboard=True, one_time_keyboard=True,
+    )
+
+
+def main_menu(is_admin_user: bool = False) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(text="🚫 Spam Filter", callback_data="spam_filter"),
+            InlineKeyboardButton(text="📋 Qora Ro'yxat", callback_data="blacklist"),
+        ],
+        [
+            InlineKeyboardButton(text="📊 Tarixim", callback_data="history"),
+            InlineKeyboardButton(text="👥 Guruh Rejimi", callback_data="group_mode"),
+        ],
+        [InlineKeyboardButton(text="🌐 Taqiqlangan Saytlar", callback_data="banned_sites_main")],
+        [
+            InlineKeyboardButton(text="📂 Buyruqlar", callback_data="commands"),
+            InlineKeyboardButton(text="ℹ️ Yordam", callback_data="help"),
+        ],
+    ]
+    if is_admin_user:
+        rows.append([InlineKeyboardButton(text="👑 Admin Paneli", callback_data="admin_panel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def admin_panel_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="👥 Foydalanuvchilar", callback_data="admin_users"),
+            InlineKeyboardButton(text="📊 Statistika", callback_data="admin_stats"),
+        ],
+        [InlineKeyboardButton(text="🤖 Bot qaysi guruhlarda", callback_data="admin_groups")],
+        [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
+        [InlineKeyboardButton(text="🚫 Taqiqlangan Saytlar", callback_data="admin_banned_sites")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
+    ])
+
+
+def back_button(to: str = "main_menu") -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data=to)]
+    ])
+
+
+def spam_filter_menu(is_on: bool) -> InlineKeyboardMarkup:
+    status = "✅ Yoqiq" if is_on else "❌ O'chiq"
+    toggle = "spam_off" if is_on else "spam_on"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Holat: " + status, callback_data=toggle)],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
+    ])
+
+
+def blacklist_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📋 Tekshirilgan linklar", callback_data="bl_show")],
+        [InlineKeyboardButton(text="🗑 Tozalash (admin)", callback_data="bl_clear")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
+    ])
+
+
+def _platform_grid(prefix: str, back_to: str) -> InlineKeyboardMarkup:
+    rows = []
+    items = list(PLATFORMS.items())
+    for i in range(0, len(items), 2):
+        row = [InlineKeyboardButton(text=items[i][1], callback_data=f"{prefix}{items[i][0]}")]
+        if i + 1 < len(items):
+            row.append(InlineKeyboardButton(
+                text=items[i + 1][1], callback_data=f"{prefix}{items[i + 1][0]}"
+            ))
+        rows.append(row)
+    rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data=back_to)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def banned_sites_menu() -> InlineKeyboardMarkup:
+    return _platform_grid("bs_", "main_menu")
+
+
+def admin_add_site_platforms_menu() -> InlineKeyboardMarkup:
+    return _platform_grid("addsite_", "admin_banned_sites")
+
+
+def group_mode_menu(is_on: bool) -> InlineKeyboardMarkup:
+    status = "✅ Yoqiq" if is_on else "❌ O'chiq"
+    toggle = "gm_off" if is_on else "gm_on"
+    add_url = (
+        f"https://t.me/{settings.bot_username}"
+        "?startgroup=true&admin=delete_messages+restrict_members+ban_users"
+    )
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="Holat: " + status, callback_data=toggle)],
+        [InlineKeyboardButton(text="📋 Guruhlarim", callback_data="gm_list")],
+        [InlineKeyboardButton(text="➕ Guruhga qo'shish", url=add_url)],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
+    ])
+
+
+def users_export_kb(back_cb: str | None = None) -> InlineKeyboardMarkup:
+    rows = [[
+        InlineKeyboardButton(text="📄 PDF", callback_data="export_pdf"),
+        InlineKeyboardButton(text="📝 DOCX", callback_data="export_docx"),
+    ]]
+    if back_cb:
+        rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data=back_cb)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def groups_export_kb(back_cb: str | None = None) -> InlineKeyboardMarkup:
+    rows = [[
+        InlineKeyboardButton(text="📄 PDF yuklab olish", callback_data="groups_export_pdf"),
+        InlineKeyboardButton(text="📝 DOCX yuklab olish", callback_data="groups_export_docx"),
+    ]]
+    if back_cb:
+        rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data=back_cb)])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def banned_detail_kb(platform: str, *, has_prev: bool, has_next: bool,
+                     page: int, is_admin_user: bool) -> InlineKeyboardMarkup:
+    rows = [[
+        InlineKeyboardButton(text="📄 PDF", callback_data=f"bsexp_pdf_{platform}"),
+        InlineKeyboardButton(text="📝 DOCX", callback_data=f"bsexp_docx_{platform}"),
+    ]]
+    nav = []
+    if has_prev:
+        nav.append(InlineKeyboardButton(
+            text="◀️ Oldingi", callback_data=f"bs_{platform}_p{page - 1}"
+        ))
+    if has_next:
+        nav.append(InlineKeyboardButton(
+            text="Keyingi ▶️", callback_data=f"bs_{platform}_p{page + 1}"
+        ))
+    if nav:
+        rows.append(nav)
+    if is_admin_user:
+        rows.append([InlineKeyboardButton(
+            text="🗑 Sayt o'chirish", callback_data=f"bsdel_list_{platform}"
+        )])
+    rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="banned_sites_main")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def banned_empty_kb(platform: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📄 PDF", callback_data=f"bsexp_pdf_{platform}"),
+            InlineKeyboardButton(text="📝 DOCX", callback_data=f"bsexp_docx_{platform}"),
+        ],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="banned_sites_main")],
+    ])
+
+
+def admin_banned_sites_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Yangi sayt qo'shish", callback_data="admin_add_site")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")],
+    ])
+
+
+def after_addsite_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="➕ Yana qo'shish", callback_data="admin_add_site")],
+        [InlineKeyboardButton(text="👑 Admin Paneli", callback_data="admin_panel")],
+    ])
+
+
+def go_start_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📱 Ro'yxatdan o'tish", callback_data="go_start")]
+    ])
