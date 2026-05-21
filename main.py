@@ -63,16 +63,37 @@ async def main() -> None:
         logger.info(f"⚡ Bot {port}-portda so'rovlarni qabul qilmoqda!")
         
         # Jarayonni cheksiz kutish rejimida ushlab turamiz
-        await asyncio.Event().wait()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            logger.info("🧹 Webhook serveri yopilmoqda, resurslar tozalanmoqda...")
+            try:
+                await bot.delete_webhook()
+            except Exception as e:
+                logger.warning(f"Webhook o'chirishda xatolik: {e}")
+            await runner.cleanup()
     else:
         # Standart Polling rejimi
+        server_runner = None
         if os.getenv("PORT"):
-            asyncio.create_task(start_health_check_server())
+            port = int(os.getenv("PORT", 8080))
+            app = web.Application()
+            app.router.add_get("/", health_check)
+            server_runner = web.AppRunner(app)
+            await server_runner.setup()
+            site = web.TCPSite(server_runner, "0.0.0.0", port)
+            await site.start()
+            logger.info(f"🚀 Dummy server {port}-portda ishga tushdi!")
 
         logger.info("✅ SafeGuard Bot polling rejimida ishga tushdi!")
         # Eski webhookni tozalash
         await bot.delete_webhook(drop_pending_updates=True)
-        await dp.start_polling(bot)
+        try:
+            await dp.start_polling(bot)
+        finally:
+            if server_runner:
+                logger.info("🧹 Dummy polling serveri tozalanmoqda...")
+                await server_runner.cleanup()
 
 
 if __name__ == "__main__":

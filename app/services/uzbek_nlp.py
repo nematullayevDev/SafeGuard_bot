@@ -18,7 +18,7 @@ CYR_TO_LAT_MAP = {
     'Ё': 'Yo', 'ё': 'yo',
     'Ж': 'J', 'ж': 'j',
     'З': 'Z', 'з': 'z',
-    'И': 'I', 'и': 'i',
+    'И': 'I', 'i': 'i', 'и': 'i',
     'Й': 'Y', 'й': 'y',
     'К': 'K', 'к': 'k',
     'Л': 'L', 'л': 'l',
@@ -40,10 +40,10 @@ CYR_TO_LAT_MAP = {
     'Э': 'E', 'э': 'e',
     'Ю': 'Yu', 'ю': 'yu',
     'Я': 'Ya', 'я': 'ya',
-    'Ў': "O'", 'ў': "o'",
-    'Қ': 'Q', 'қ': 'q',
-    'Ғ': "G'", 'ғ': "g'",
-    'Ҳ': 'H', 'ҳ': 'h'
+    'Ў': "o'", 'ў': "o'",
+    'Қ': 'q', 'қ': 'q',
+    'Ғ': "g'", 'ғ': "g'",
+    'Ҳ': 'h', 'ҳ': 'h'
 }
 
 def transliterate_cyr_to_lat(text: str) -> str:
@@ -63,35 +63,97 @@ def transliterate_cyr_to_lat(text: str) -> str:
     return "".join(result)
 
 
+def stem_uzbek_word(word: str) -> str:
+    """Strips common Uzbek suffixes iteratively to find the root."""
+    w = word.strip().lower()
+    if len(w) < 4:
+        return w
+
+    # Suffixes in decreasing order of length to avoid partial matches
+    suffixes = [
+        # Continuous aspect & complex verb endings
+        "moqdamiz", "moqdasiz", "moqdalar", "moqdaman", "moqdasan", "moqda",
+        "yaptilar", "yapsiz", "yapmiz", "yapman", "yapsan", "yapti",
+        "ganman", "gansan", "ganmiz", "gansiz", "ganlar", "gan",
+        "diganman", "digansan", "diganmiz", "digansiz", "diganlar", "digan",
+        # Standard verb endings
+        "adilar", "asiz", "amiz", "aman", "asan", "adi",
+        "aydilar", "aysiz", "aymiz", "ayman", "aysan", "aydi",
+        "dingiz", "dilar", "dim", "ding", "dik", "di",
+        "salar", "sam", "sang", "sak", "sangiz", "sa",
+        # Plural and complex case forms
+        "dagilar", "dagi", "larimiz", "laringiz", "lari", "lar",
+        # Noun/adjective derivation suffixes
+        "chilik", "chilar", "likda", "likdan", "liklar", "lik", "chi",
+        "vchilar", "vchi", "uvchilar", "uvchi", "moq", "ish", "ishlar",
+        # Case endings
+        "ning", "dan", "ga", "ka", "qa", "da", "ni",
+        # Possessives
+        "imiz", "ingiz", "ing", "im", "i", "si",
+        # Particles
+        "mi", "dir", "ku", "u", "da"
+    ]
+
+    changed = True
+    while changed:
+        changed = False
+        for suffix in suffixes:
+            if w.endswith(suffix):
+                # Ensure root doesn't become too short (min 3 chars)
+                if len(w) - len(suffix) >= 3:
+                    w = w[:-len(suffix)]
+                    changed = True
+                    break
+    return w
+
+
+def simplify_word(word: str) -> str:
+    """Simplifies spelling variations: lowers, replaces x->h, o'->o, g'->g, strips symbols."""
+    w = word.lower()
+    # Normalize O' and G' apostrophes
+    w = re.sub(r"[‘`ʻ’']", "", w)
+    # Simplify common consonant substitutions
+    w = w.replace("x", "h")
+    # Clean any remaining non-alphanumeric characters
+    w = re.sub(r"[^a-z0-9]", "", w)
+    return w
+
+
 class UzbekNLPService:
     def __init__(self, gemini_api_key: Optional[str] = None) -> None:
         self._api_key = gemini_api_key
         
-        # Local high-fidelity wordlists (always in lower-case Latin)
+        # High-fidelity keyword lists
         self._extremism_keywords = {
-            "jihod", "xalifalik", "hizb ut-tahrir", "hizb ut tahrir", "akromiylar", 
-            "soxta dindorlar", "kofirlar", "mushriklar", "hijrat qilish", "jihodchilar", 
-            "salafiylar", "vahobiylar", "islomiy davlat", "isid", "shariat qonunlari", 
-            "tovhid", "kufr", "murtad", "xalifa", "tahrirchilar", "tahdidiy g'oya",
-            "akramiya", "katiba", "tavxid", "halifalik"
+            "jihod", "hijrat", "xalifa", "xalifalik", "hizb ut-tahrir", "akromiy", 
+            "akromiylar", "akramiya", "salaf", "salafiylar", "salafiy", "vahobiy", 
+            "vahobiylar", "islomiy davlat", "isid", "daish", "shariat", "tovhid", 
+            "tavhid", "kufr", "murtad", "kofir", "mushrik", "jihodchi", "muhojir", 
+            "ansor", "ansoriy", "qitol", "g'azot", "g'azovat", "shahid", "shohid", 
+            "katiba", "jundulloh", "tahrirchi", "islom nuri", "tavxid", "halifalik"
         }
         
         self._drugs_keywords = {
             "sol", "mefedron", "mef", "kristall", "geroin", "ko'knor", "konoplya", 
-            "tramadol", "lrika", "skorost", "spays", "doperun", "kladmen", "klad", 
-            "kurir", "zakladka", "anasha", "gash", "gashish", "tropicamid", "tropikamid", 
-            "sintetika", "giyohvand", "psixotrop", "lira", "baku", "reglan", "optom sol"
+            "tramadol", "lyrika", "lrika", "lira", "skorost", "spays", "doperun", 
+            "kladmen", "klad", "kurir", "kuryer", "zakladka", "anasha", "gash", 
+            "gashish", "tropicamid", "tropikamid", "sintetika", "giyohvand", 
+            "psixotrop", "baku", "reglan", "optom sol", "narkotik", "koks", 
+            "kokain", "nasha", "nasha urug'i", "atxod", "preparat", "giyoh", 
+            "shirinlik", "tuz", "kristal"
         }
         
         self._bullying_keywords = {
-            "suka", "jalap", "blat", "am", "qo'tag'", "qanciq", "yaramas", "iflos", 
-            "o'ldiraman", "so'yaman", "sharmanda", "gandon", "kot", "pidar", "dalbayob", 
-            "axmoq", "xarom", "harom", "yebsan", "sik", "sikaman", "qotoq", "koting", 
-            "jallod", "chort", "tvar", "gandonlar", "kallangni", "kalla"
+            "suka", "jalap", "blat", "am", "qo'tag'", "qotoq", "qanciq", "yaramas", 
+            "iflos", "o'ldir", "so'yaman", "sharmanda", "gandon", "kot", "pidar", 
+            "dalbayob", "axmoq", "xarom", "harom", "yebsan", "sik", "sikaman", 
+            "koting", "jallod", "chort", "tvar", "gandonlar", "kallangni", "kalla", 
+            "tahdid", "zo'rlayman", "ursang", "o'ldiraman", "yuzingni yirtaman", 
+            "sharmandangni chiqaraman", "gejga solaman", "urib o'ldiraman"
         }
 
     def normalize_text(self, text: str) -> str:
-        """Cleans, normalizes, and translates Uzbek text to unified Latin script."""
+        """Cleans, normalizes, and transliterates Uzbek text to unified Latin script."""
         if not text:
             return ""
         # 1. Transliterate to Latin if Cyrillic characters are detected
@@ -106,29 +168,59 @@ class UzbekNLPService:
         return text_lower
 
     def analyze_local(self, text: str) -> Tuple[bool, Optional[str], Optional[str]]:
-        """Performs extremely fast local keyword-based classification."""
+        """Performs advanced local rule-based stemming and spelling variation matching."""
         normalized = self.normalize_text(text)
-        words = set(re.findall(r"\b\w+(?:'\w+)?\b", normalized))
+        
+        # Clean text for whole phrase matching
+        clean_text = re.sub(r"[^a-z0-9\s']", " ", normalized)
+        clean_text = re.sub(r"\s+", " ", clean_text).strip()
+        
+        # Tokenize and stem each word
+        raw_words = clean_text.split()
+        stemmed_words = [stem_uzbek_word(w) for w in raw_words]
+        simplified_stemmed_words = [simplify_word(w) for w in stemmed_words]
+        
+        # Build stemmed whole text for phrase matching
+        stemmed_text = " ".join(stemmed_words)
+        simplified_stemmed_text = " ".join(simplified_stemmed_words)
         
         # 1. Extremism Check
         for keyword in self._extremism_keywords:
-            if keyword in normalized:
-                # Direct check for phrases, or word-level matches
-                if " " in keyword or keyword in words:
-                    return True, "extremism", f"Diniy ekstremistik yoki radikal g'oyalar targ'iboti aniqlandi (Kalit so'z: '{keyword}')"
-                    
+            simplified_kw = simplify_word(keyword)
+            # Match either as single word or as phrase in stemmed/simplified text
+            if " " in keyword:
+                if simplified_kw in simplified_stemmed_text:
+                    return True, "extremism", f"Diniy ekstremistik yoki radikal g'oyalar targ'iboti aniqlandi (Tahlil: '{keyword}')"
+            else:
+                if simplified_kw in simplified_stemmed_words:
+                    idx = simplified_stemmed_words.index(simplified_kw)
+                    original_match = raw_words[idx]
+                    return True, "extremism", f"Diniy ekstremistik yoki radikal g'oyalar targ'iboti aniqlandi (Kalit so'z: '{original_match}')"
+
         # 2. Drugs Check
         for keyword in self._drugs_keywords:
-            if keyword in normalized:
-                if " " in keyword or keyword in words:
-                    return True, "drugs", f"Giyohvand moddalar yashirin savdosi yoki targ'iboti aniqlandi (Jargon: '{keyword}')"
-                    
+            simplified_kw = simplify_word(keyword)
+            if " " in keyword:
+                if simplified_kw in simplified_stemmed_text:
+                    return True, "drugs", f"Giyohvand moddalar yashirin savdosi yoki targ'iboti aniqlandi (Tahlil: '{keyword}')"
+            else:
+                if simplified_kw in simplified_stemmed_words:
+                    idx = simplified_stemmed_words.index(simplified_kw)
+                    original_match = raw_words[idx]
+                    return True, "drugs", f"Giyohvand moddalar yashirin savdosi yoki targ'iboti aniqlandi (Jargon: '{original_match}')"
+
         # 3. Cyberbullying Check
         for keyword in self._bullying_keywords:
-            if keyword in normalized:
-                if " " in keyword or keyword in words:
-                    return True, "bullying", f"Kiberbulling, tahdid yoki og'ir haqorat elementlari aniqlandi (So'z: '{keyword}')"
-                    
+            simplified_kw = simplify_word(keyword)
+            if " " in keyword:
+                if simplified_kw in simplified_stemmed_text:
+                    return True, "bullying", f"Kiberbulling, tahdid yoki haqorat elementlari aniqlandi (Tahlil: '{keyword}')"
+            else:
+                if simplified_kw in simplified_stemmed_words:
+                    idx = simplified_stemmed_words.index(simplified_kw)
+                    original_match = raw_words[idx]
+                    return True, "bullying", f"Kiberbulling, tahdid yoki og'ir haqorat elementlari aniqlandi (So'z: '{original_match}')"
+
         return False, None, None
 
     async def analyze_text(self, text: str) -> Dict[str, Any]:
@@ -179,7 +271,13 @@ class UzbekNLPService:
                         if response.status == 200:
                             data = await response.json()
                             content_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                            result = json.loads(content_text)
+                            
+                            # Strip markdown code block notation if present
+                            if content_text.startswith("```"):
+                                content_text = re.sub(r"^```(?:json)?\s*", "", content_text)
+                                content_text = re.sub(r"\s*```$", "", content_text)
+                                
+                            result = json.loads(content_text.strip())
                             logger.info("AI NLP tahlil muvaffaqiyatli yakunlandi.")
                             return {
                                 "is_violation": bool(result.get("is_violation", False)),

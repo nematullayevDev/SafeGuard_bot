@@ -216,15 +216,23 @@ def nlp_violation_warning(category: str, reason: str, sender_mention: str) -> st
         "drugs": "🚨💊",
         "bullying": "🚨⚠️"
     }.get(category, "🚨")
+
+    legal_note = {
+        "extremism": "⚖️ <b>Huquqiy javobgarlik:</b> O'zR JK 244-1-moddasiga ko'ra jamoat xavfsizligiga tahdid soluvchi materiallarni tarqatish <b>jinoiy javobgarlikka</b> sabab bo'ladi.",
+        "drugs": "⚖️ <b>Huquqiy javobgarlik:</b> O'zR JK 273-moddasiga ko'ra giyohvandlik moddalari savdosi va yashirin aylanmasi <b>og'ir jinoiy javobgarlikka</b> sabab bo'ladi.",
+        "bullying": "⚖️ <b>Huquqiy javobgarlik:</b> O'zR JK 140-moddasi (Haqorat qilish) hamda MJtK 41-moddasiga muvofiq qonuniy choralar ko'riladi."
+    }.get(category, "⚖️ O'zbekiston Respublikasi qonunchiligiga ko'ra javobgarlik mavjud.")
     
     return (
         f"{emoji} <b>XAVFLI MATN ANIQLANDI VA BLOKLANDI!</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"👤 <b>Qonunbuzar:</b> {sender_mention}\n"
         f"📂 <b>Kategoriya:</b> <code>{cat_label}</code>\n"
         f"📝 <b>Tahliliy Izoh:</b> <i>{reason}</i>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"⚠️ <b>Ogohlantirish:</b> Guruhda qonunga xilof materiallar tarqatish taqiqlanadi!"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{legal_note}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📢 <i>IIV Kiber-Xavfsizlik Departamentining avtomatik nazorat tizimi.</i>"
     )
 
 
@@ -233,31 +241,40 @@ def nlp_forensic_report(result: dict, raw_text: str) -> str:
     reason = result.get("reason", "Tahlil yakunlandi.")
     is_viol = result.get("is_violation", False)
     
-    status_emoji = "🔴 QONUNBUZARLIK ANIQLANDI" if is_viol else "✅ TIZIM XAVFSIZ"
+    status_emoji = "🔴 JINAYAT ALOMATLARI ANIQLANDI" if is_viol else "✅ TIZIM XAVFSIZ"
     status_color = "🚨" if is_viol else "🛡"
     
     cat_label = {
-        "extremism": "🧠 Ekstremizm va Radikalizm",
-        "drugs": "💊 Giyohvand moddalar targ'iboti",
-        "bullying": "👤 Kiberbulling va Haqorat"
+        "extremism": "🧠 Ekstremizm va Radikalizm (O'zR JK 244-1)",
+        "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
+        "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)"
     }.get(category, "—")
     
     short_text = raw_text[:100] + "..." if len(raw_text) > 100 else raw_text
     
+    legal_section = ""
+    if is_viol and category:
+        legal_section = (
+            f"━━━━━━━━━━━━━━━━━━━━━\n"
+            f"⚖️ <b>Huquqiy Malakalash:</b>\n"
+            f"  {category.upper()} moddasi bo'yicha dalillar arxivi shakllantirildi. Ushbu izlar raqamli ekspertiza va sud-tergov jarayonlarida <b>rasmiy dalil</b> bo'lib xizmat qiladi.\n"
+        )
+
     return (
-        f"{status_color} <b>ICHKI ISHLAR VAZIRLIGI KIBER-TAHLIL TIZIMI</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{status_color} <b>ICHKI ISHLAR VAZIRLIGI KIBER-TERGOV TIZIMI</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 <b>Ekspertiza Xulosasi:</b>\n"
         f"  • <b>Holat:</b> <code>{status_emoji}</code>\n"
         f"  • <b>Kategoriya:</b> <b>{cat_label}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📝 <b>Tekshirilgan matn:</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📝 <b>Tekshirilgan Matn:</b>\n"
         f"  <i>\"{short_text}\"</i>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"🔬 <b>Tahliliy Izoh:</b>\n"
         f"  <code>{reason}</code>\n"
-        f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"📢 <i>IIV Raqamli Ekspertiza va Kiber-Tergov Departamentining monitoring tizimi.</i>"
+        f"{legal_section}"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📢 <i>IIV Raqamli Ekspertiza va Kiber-Tergov Departamentining rasmiy tahlilnomasi.</i>"
     )
 
 

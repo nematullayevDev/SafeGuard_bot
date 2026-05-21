@@ -106,7 +106,10 @@ def register(dp: Dispatcher, c: Container) -> None:
         try:
             nlp_res = await c.nlp.analyze_text(text)
             if nlp_res["is_violation"]:
-                await wait.delete()
+                try:
+                    await wait.delete()
+                except Exception:
+                    pass
                 await message.answer(
                     formatters.nlp_forensic_report(nlp_res, text),
                     reply_markup=main_menu(is_admin_user),
