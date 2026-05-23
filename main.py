@@ -49,11 +49,30 @@ async def self_ping(url: str, interval: int = 600) -> None:
             await asyncio.sleep(interval)
 
 
+from aiogram.types import BotCommand
+
+
+async def set_bot_commands() -> None:
+    """Set up the official Telegram commands menu list."""
+    commands = [
+        BotCommand(command="start", description="🚀 Botni ishga tushirish"),
+        BotCommand(command="menu", description="📱 Bosh menyuni ochish"),
+    ]
+    try:
+        await bot.set_my_commands(commands)
+        logger.info("✅ Bot buyruqlari muvaffaqiyatli o'rnatildi!")
+    except Exception as e:
+        logger.warning(f"Bot buyruqlarini o'rnatishda xatolik: {e}")
+
+
 async def main() -> None:
     setup_logging()
     init_schema()
     container = build_container()
     register_all(dp, container)
+    
+    # Bot buyruqlari menyusini ro'yxatdan o'tkazamiz
+    await set_bot_commands()
 
     webhook_url = os.getenv("WEBHOOK_URL")
     if webhook_url:
