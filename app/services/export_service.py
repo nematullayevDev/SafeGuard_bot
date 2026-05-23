@@ -413,3 +413,131 @@ class ExportService:
         
         doc.save(tmp.name)
         return tmp.name
+
+    def forensic_list_pdf(self, cases: Sequence[ForensicCase], category_title: str) -> str:
+        font_name = "Helvetica"
+        font_path = _find_font()
+        if font_path:
+            try:
+                pdfmetrics.registerFont(TTFont("UniFont", font_path))
+                font_name = "UniFont"
+            except Exception:
+                pass
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        doc = SimpleDocTemplate(tmp.name, pagesize=A4,
+                                leftMargin=30, rightMargin=30,
+                                topMargin=30, bottomMargin=30)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle("ListTitleUni", parent=styles["Title"],
+                                     fontName=font_name, fontSize=12, spaceAfter=8)
+        normal_style = ParagraphStyle("ListNormalUni", parent=styles["Normal"],
+                                      fontName=font_name, fontSize=8, leading=10)
+        header_style = ParagraphStyle("ListHeaderUni", parent=styles["Normal"],
+                                      fontName=font_name + "-Bold" if font_path is None else font_name,
+                                      fontSize=9, leading=11, textColor=colors.white)
+
+        elements = [
+            Paragraph(f"<b>O'ZBEKISTON RESPUBLIKASI IIV KIBERXAVFSIZLIK DEPARTAMENTI</b>", title_style),
+            Paragraph(f"<b>Kiber-Tergov Dalillar Arxivi — {category_title}</b>", title_style),
+            Spacer(1, 10),
+            Paragraph("Sana: " + datetime.now().strftime("%d.%m.%Y %H:%M"), normal_style),
+            Paragraph(f"Jami yozuvlar soni: {len(cases)} ta", normal_style),
+            Spacer(1, 15),
+        ]
+
+        data = [[
+            Paragraph("<b>#</b>", header_style),
+            Paragraph("<b>Sana</b>", header_style),
+            Paragraph("<b>Gumondor (ID)</b>", header_style),
+            Paragraph("<b>Guruh</b>", header_style),
+            Paragraph("<b>Jinoyat Turi</b>", header_style),
+            Paragraph("<b>Tahlil sababi</b>", header_style)
+        ]]
+
+        for i, c in enumerate(cases, 1):
+            lbl = {
+                "extremism": "🚨 Ekstrem",
+                "drugs": "💊 Giyoh",
+                "bullying": "⚠️ Bulling",
+                "link": "🔗 Havola",
+                "file": "📦 Fayl",
+            }.get(c.violation_type, "🚫 Buzar")
+            
+            user_info = f"{c.full_name}\n(ID: {c.user_id})"
+            if c.username:
+                user_info += f"\n@{c.username}"
+            if c.phone:
+                user_info += f"\n{c.phone}"
+
+            data.append([
+                Paragraph(str(i), normal_style),
+                Paragraph(_escape_html(c.detected_at), normal_style),
+                Paragraph(_escape_html(user_info).replace("\n", "<br/>"), normal_style),
+                Paragraph(_escape_html(c.chat_title), normal_style),
+                Paragraph(_escape_html(lbl), normal_style),
+                Paragraph(_escape_html(c.reason), normal_style)
+            ])
+
+        table = Table(data, colWidths=[20, 65, 110, 85, 60, 160])
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2C3E50")),
+            ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.HexColor("#F9F9F9"), colors.white]),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("PADDING", (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(table)
+        doc.build(elements)
+        return tmp.name
+
+    def forensic_list_docx(self, cases: Sequence[ForensicCase], category_title: str) -> str:
+        tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+        doc = Document()
+        
+        h1 = doc.add_heading("O'ZBEKISTON RESPUBLIKASI IIV KIBERXAVFSIZLIK DEPARTAMENTI", 1)
+        h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        h2 = doc.add_heading(f"Kiber-Tergov Dalillar Arxivi — {category_title}", 2)
+        h2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph("Sana: " + datetime.now().strftime("%d.%m.%Y %H:%M"))
+        doc.add_paragraph(f"Jami yozuvlar soni: {len(cases)} ta")
+        doc.add_paragraph("")
+        
+        table = doc.add_table(rows=1, cols=6)
+        table.style = "Table Grid"
+        
+        headers = ["#", "Sana", "Gumondor", "Guruh", "Jinoyat Turi", "Tahlil sababi"]
+        for i, h_text in enumerate(headers):
+            cell = table.rows[0].cells[i]
+            cell.text = h_text
+            cell.paragraphs[0].runs[0].bold = True
+            
+        for i, c in enumerate(cases, 1):
+            row = table.add_row().cells
+            row[0].text = str(i)
+            row[1].text = c.detected_at
+            
+            user_info = f"{c.full_name} (ID: {c.user_id})"
+            if c.username:
+                user_info += f"\n@{c.username}"
+            if c.phone:
+                user_info += f"\n{c.phone}"
+            row[2].text = user_info
+            
+            row[3].text = c.chat_title
+            
+            lbl = {
+                "extremism": "Ekstremizm",
+                "drugs": "Giyohvandlik",
+                "bullying": "Kiberbulling",
+                "link": "Xavfli Havola",
+                "file": "Zararli Fayl",
+            }.get(c.violation_type, "Qonunbuzarlik")
+            row[4].text = lbl
+            
+            row[5].text = c.reason
+            
+        doc.save(tmp.name)
+        return tmp.name

@@ -56,7 +56,6 @@ async def _save_forensics_case(message: Message, violation_type: str, reason: st
         if photos and photos.photos:
             file_id = photos.photos[0][-1].file_id
             file_info = await bot.get_file(file_id)
-            downloaded = await bot.download_file(file_info.file_path)
             
             photos_dir = os.path.join(settings.base_dir, "forensics_photos")
             os.makedirs(photos_dir, exist_ok=True)
@@ -64,8 +63,8 @@ async def _save_forensics_case(message: Message, violation_type: str, reason: st
             filename = f"user_{sender_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
             full_path = os.path.join(photos_dir, filename)
             
-            with open(full_path, "wb") as f:
-                f.write(downloaded.read())
+            # Use standard and robust aiogram 3.x download method
+            await bot.download(file_info, destination=full_path)
             
             photo_path = full_path
             logger.info(f"Huquqbuzar profil rasmi yuklab olindi: {photo_path}")

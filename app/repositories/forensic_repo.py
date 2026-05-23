@@ -81,6 +81,18 @@ class ForensicRepository(BaseRepository):
             ).fetchall()
         return [self._row_to_case(r) for r in rows]
 
+    def list_filtered(self, violation_type: str, limit: int = 50) -> list[ForensicCase]:
+        with get_conn() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT id, chat_id, chat_title, user_id, full_name, username, phone,
+                       message_text, violation_type, reason, detected_at, photo_path
+                FROM forensics WHERE violation_type = ? ORDER BY id DESC LIMIT {limit}
+                """,
+                (violation_type,)
+            ).fetchall()
+        return [self._row_to_case(r) for r in rows]
+
     def delete(self, case_id: int) -> None:
         with get_conn() as conn:
             conn.execute("DELETE FROM forensics WHERE id = ?", (case_id,))

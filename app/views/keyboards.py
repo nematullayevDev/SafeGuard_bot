@@ -14,6 +14,18 @@ def phone_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def persistent_menu_keyboard(is_admin_user: bool = False) -> ReplyKeyboardMarkup:
+    if is_admin_user:
+        keyboard = [
+            [KeyboardButton(text="📱 Menu"), KeyboardButton(text="👑 Admin")]
+        ]
+    else:
+        keyboard = [
+            [KeyboardButton(text="📱 Menu")]
+        ]
+    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+
+
 def main_menu(is_admin_user: bool = False) -> InlineKeyboardMarkup:
     rows = [
         [
@@ -187,8 +199,25 @@ def go_start_kb() -> InlineKeyboardMarkup:
     ])
 
 
-def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool) -> InlineKeyboardMarkup:
+def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category: str = "all") -> InlineKeyboardMarkup:
     rows = []
+    
+    # 1. Category Filter Buttons at the top
+    filters = [
+        InlineKeyboardButton(text="🚨 Ekstrem" + (" ✅" if category == "extremism" else ""), callback_data="admin_forensics_list_p0_cextremism"),
+        InlineKeyboardButton(text="💊 Giyoh" + (" ✅" if category == "drugs" else ""), callback_data="admin_forensics_list_p0_cdrugs"),
+    ]
+    filters2 = [
+        InlineKeyboardButton(text="⚠️ Bulling" + (" ✅" if category == "bullying" else ""), callback_data="admin_forensics_list_p0_cbullying"),
+        InlineKeyboardButton(text="🌐 Barchasi" + (" ✅" if category == "all" else ""), callback_data="admin_forensics_list_p0_call"),
+    ]
+    rows.append(filters)
+    rows.append(filters2)
+    
+    # Divider line
+    rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
+    
+    # 2. Case List Items
     for c in cases:
         short_name = c.full_name[:12] + ".." if len(c.full_name) > 12 else c.full_name
         violation_lbl = {
@@ -200,22 +229,39 @@ def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool) -> Inlin
         }.get(c.violation_type, "🚫 Buzar")
         rows.append([InlineKeyboardButton(
             text=f"ID #{c.id}: {short_name} ({violation_lbl})",
-            callback_data=f"forensic_case_{c.id}_p{page}"
+            callback_data=f"forensic_case_{c.id}_p{page}_c{category}"
         )])
     
+    # 3. Navigation Buttons
     nav = []
     if has_prev:
-        nav.append(InlineKeyboardButton(text="◀️ Oldingi", callback_data=f"admin_forensics_list_p{page - 1}"))
+        nav.append(InlineKeyboardButton(text="◀️ Oldingi", callback_data=f"admin_forensics_list_p{page - 1}_c{category}"))
     if has_next:
-        nav.append(InlineKeyboardButton(text="Keyingi ▶️", callback_data=f"admin_forensics_list_p{page + 1}"))
+        nav.append(InlineKeyboardButton(text="Keyingi ▶️", callback_data=f"admin_forensics_list_p{page + 1}_c{category}"))
     if nav:
         rows.append(nav)
+        
+    # Divider line before exports
+    rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
+    
+    # 4. Bulk Export Buttons
+    export_label = {
+        "extremism": "Ekstremizm ro'yxati",
+        "drugs": "Giyohvandlik ro'yxati",
+        "bullying": "Bulling ro'yxati",
+        "all": "Barcha dalillar",
+    }.get(category, "Ro'yxat")
+    
+    rows.append([
+        InlineKeyboardButton(text="📥 PDF Yuklab olish", callback_data=f"forensiclist_pdf_{category}"),
+        InlineKeyboardButton(text="📥 DOCX Yuklab olish", callback_data=f"forensiclist_docx_{category}")
+    ])
         
     rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def forensic_detail_kb(case_id: int, page: int) -> InlineKeyboardMarkup:
+def forensic_detail_kb(case_id: int, page: int, category: str = "all") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="📄 PDF Tergov Bayonnomasi", callback_data=f"forensic_pdf_{case_id}"),
@@ -224,7 +270,7 @@ def forensic_detail_kb(case_id: int, page: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📝 Word Tergov Bayonnomasi", callback_data=f"forensic_docx_{case_id}"),
         ],
         [
-            InlineKeyboardButton(text="🗑 Dalilni o'chirish", callback_data=f"forensic_del_{case_id}_p{page}"),
+            InlineKeyboardButton(text="🗑 Dalilni o'chirish", callback_data=f"forensic_del_{case_id}_p{page}_c{category}"),
         ],
-        [InlineKeyboardButton(text="🔙 Ro'yxatga orqaga", callback_data=f"admin_forensics_list_p{page}")],
+        [InlineKeyboardButton(text="🔙 Ro'yxatga orqaga", callback_data=f"admin_forensics_list_p{page}_c{category}")],
     ])
