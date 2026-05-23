@@ -273,7 +273,7 @@ class ExportService:
             [Paragraph("<b>Manzil (Guruh):</b>", label_style), Paragraph(f"{case.chat_title} (ID: {case.chat_id})", value_style)],
             [Paragraph("<b>Qonunbuzarlik turi:</b>", label_style), Paragraph(case.display_violation, value_style)],
             [Paragraph("<b>Huquqbuzar (Ism):</b>", label_style), Paragraph(case.full_name, value_style)],
-            [Paragraph("<b>Username / ID:</b>", label_style), Paragraph(f"@{case.username if case.username else 'yo'q'} / ID: {case.user_id}", value_style)],
+            [Paragraph("<b>Username / ID:</b>", label_style), Paragraph(f"@{case.username if case.username else 'yo\'q'} / ID: {case.user_id}", value_style)],
             [Paragraph("<b>Telefon raqam:</b>", label_style), Paragraph(case.phone if case.phone else "ulashilmagan", value_style)],
             [Paragraph("<b>Tizim xulosasi:</b>", label_style), Paragraph(case.reason, value_style)],
         ]
