@@ -2,7 +2,7 @@
 from typing import Sequence
 
 from app.models import (
-    BannedSite, BotStats, Group, HistoryEntry, ScanResult, ScanVerdict, User,
+    BannedSite, BotStats, Group, HistoryEntry, ScanResult, ScanVerdict, User, ForensicCase,
 )
 
 _VERDICT_LABEL = {
@@ -275,6 +275,36 @@ def nlp_forensic_report(result: dict, raw_text: str) -> str:
         f"{legal_section}"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"📢 <i>IIV Raqamli Ekspertiza va Kiber-Tergov Departamentining rasmiy tahlilnomasi.</i>"
+    )
+
+
+def state_sync_result(res: dict) -> str:
+    return (
+        "🏛 <b>IIV Davlat Integratsiya Tizimi</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "Davlat ochiq ma'lumotlar bazalari bilan sinxronizatsiya yakunlandi.\n\n"
+        f"📂 <b>Holat:</b> <code>{res['status']}</code>\n"
+        f"🚫 <b>Ekstremistik sayt/kanallar:</b> +<b>{res['banned_added']}</b> ta yangi qo'shildi\n"
+        f"🔗 <b>Fishing havolalar:</b> +<b>{res['phishing_added']}</b> ta qora ro'yxatga olindi\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "📢 <i>Lokal bazalar IIV va Kiberxavfsizlik departamenti ro'yxatlari bilan muvaffaqiyatli sinxronlandi.</i>"
+    )
+
+
+def forensic_case_detail(case: ForensicCase) -> str:
+    return (
+        f"📂 <b>KIBER-TERGOV DALILI (Case ID: #{case.id})</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Sana va vaqt: <b>{case.detected_at}</b>\n"
+        f"Guruh: <b>{case.chat_title}</b> (ID: {case.chat_id})\n"
+        f"Qonunbuzar: 👤 <b>{case.full_name}</b> (@{case.username if case.username else 'yo\'q'}, ID: {case.user_id})\n"
+        f"Telefon raqam: <b>{case.phone if case.phone else 'ulashilmagan'}</b>\n\n"
+        f"🚨 <b>Kategoriya:</b> <code>{case.display_violation}</code>\n"
+        f"🔬 <b>Tizim tahlili:</b> <i>{case.reason}</i>\n\n"
+        f"📝 <b>Xabar matni (Dalil):</b>\n"
+        f"<i>\"{case.message_text}\"</i>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"PDF yoki Word bayonnomani yuklab olish uchun quyidagi tugmalardan foydalaning."
     )
 
 

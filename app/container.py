@@ -6,12 +6,12 @@ from app.core.config import settings
 from app.repositories import (
     BannedSiteRepository, BlacklistRepository, GroupRepository,
     HistoryRepository, SettingsRepository, StatsRepository,
-    UserRepository, WarningRepository,
+    UserRepository, WarningRepository, ForensicRepository,
 )
 from app.services import (
     BroadcastService, ExportService, ModerationService,
     RateLimiter, ScanService, SpamDetector, VirusTotalService,
-    UzbekNLPService,
+    UzbekNLPService, StateSyncService,
 )
 
 
@@ -26,6 +26,7 @@ class Container:
     groups: GroupRepository
     banned_sites: BannedSiteRepository
     stats: StatsRepository
+    forensics: ForensicRepository
 
     # Services
     rate_limiter: RateLimiter
@@ -36,6 +37,7 @@ class Container:
     broadcaster: BroadcastService
     exporter: ExportService
     nlp: UzbekNLPService
+    state_sync: StateSyncService
 
 
 def build_container() -> Container:
@@ -47,6 +49,7 @@ def build_container() -> Container:
     groups = GroupRepository()
     banned_sites = BannedSiteRepository()
     stats = StatsRepository()
+    forensics = ForensicRepository()
 
     rate_limiter = RateLimiter(settings.rate_limit_max, settings.rate_limit_window)
     spam = SpamDetector(settings.spam_keywords)
@@ -56,12 +59,13 @@ def build_container() -> Container:
     broadcaster = BroadcastService(bot, users)
     exporter = ExportService()
     nlp = UzbekNLPService(settings.gemini_api_key)
+    state_sync = StateSyncService(banned_sites, blacklist)
 
     return Container(
         users=users, blacklist=blacklist, user_settings=user_settings,
         history=history, warnings=warnings, groups=groups,
-        banned_sites=banned_sites, stats=stats,
+        banned_sites=banned_sites, stats=stats, forensics=forensics,
         rate_limiter=rate_limiter, spam=spam, vt=vt, scanner=scanner,
         moderator=moderator, broadcaster=broadcaster, exporter=exporter,
-        nlp=nlp,
+        nlp=nlp, state_sync=state_sync,
     )

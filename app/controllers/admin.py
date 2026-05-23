@@ -14,7 +14,7 @@ from app.core.bot import bot
 from app.core.config import settings
 from app.states import BroadcastState
 from app.views import formatters
-from app.views.keyboards import users_export_kb
+from app.views.keyboards import users_export_kb, forensics_list_kb, forensic_detail_kb, back_button
 from app.views.texts import ADMIN_ONLY, ADMIN_ONLY_ALERT
 
 logger = logging.getLogger(__name__)
@@ -119,6 +119,199 @@ def register(dp: Dispatcher, c: Container) -> None:
         await wait.delete()
         await call.answer()
 
+    # ─── State Sync ───────────────────────────────────
+    FORENSICS_PAGE_SIZE = 10
+
+    async def admin_state_sync(call: CallbackQuery):
+        if call.from_user.id != settings.admin_id:
+            await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+            return
+        wait = await call.message.answer("🏛 Davlat bazalari bilan sinxronizatsiya boshlanmoqda...")
+        try:
+            res = await c.state_sync.sync_databases()
+            try:
+                await wait.delete()
+            except Exception:
+                pass
+            await call.message.edit_text(
+                formatters.state_sync_result(res),
+                parse_mode="HTML",
+                reply_markup=back_button("admin_panel"),
+            )
+        except Exception as e:
+            logger.error("State sync xato: %s", e)
+            try:
+                await wait.delete()
+            except Exception:
+                pass
+            await call.message.answer(f"❌ Sinxronizatsiya xatosi: {e}")
+        await call.answer()
+
+    # ─── Forensics ────────────────────────────────────
+    async def admin_forensics_list(call: CallbackQuery):
+        if call.from_user.id != settings.admin_id:
+            await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+            return
+        raw = call.data.replace("admin_forensics_list_p", "")
+        try:
+            page = int(raw)
+        except ValueError:
+            page = 0
+
+        all_cases = c.forensics.list_all(limit=200)
+        total = len(all_cases)
+        start = page * FORENSICS_PAGE_SIZE
+        end = start + FORENSICS_PAGE_SIZE
+        window = all_cases[start:end]
+        has_prev = page > 0
+        has_next = end < total
+
+        if not all_cases:
+            await call.message.edit_text(
+                "📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n\n"
+                "📭 Hozircha hech qanday tergov dalili mavjud emas.\n\n"
+                "<i>Guruhda qonunbuzarlik aniqlanganda, tizim avtomatik ravishda dalillarni bu yerda saqlaydi.</i>",
+                parse_mode="HTML",
+                reply_markup=back_button("admin_panel"),
+            )
+            await call.answer()
+            return
+
+        await call.message.edit_text(
+            f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Jami: <b>{total}</b> ta dalil | "
+            f"Sahifa: {page + 1}/{max(1, (total + FORENSICS_PAGE_SIZE - 1) // FORENSICS_PAGE_SIZE)}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Batafsil ko'rish uchun dalilni tanlang:",
+            parse_mode="HTML",
+            reply_markup=forensics_list_kb(window, page, has_prev, has_next),
+        )
+        await call.answer()
+
+    async def forensic_case_view(call: CallbackQuery):
+        if call.from_user.id != settings.admin_id:
+            await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+            return
+        # forensic_case_{id}_p{page}
+        raw = call.data.replace("forensic_case_", "")
+        parts = raw.split("_p")
+        try:
+            case_id = int(parts[0])
+            page = int(parts[1]) if len(parts) > 1 else 0
+        except (ValueError, IndexError):
+            await call.answer("Xatolik!", show_alert=True)
+            return
+
+        case = c.forensics.get(case_id)
+        if not case:
+            await call.answer("Dalil topilmadi!", show_alert=True)
+            return
+
+        await call.message.edit_text(
+            formatters.forensic_case_detail(case),
+            parse_mode="HTML",
+            reply_markup=forensic_detail_kb(case_id, page),
+        )
+        await call.answer()
+
+    async def forensic_export(call: CallbackQuery):
+        if call.from_user.id != settings.admin_id:
+            await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+            return
+        # forensic_pdf_{id} or forensic_docx_{id}
+        parts = call.data.split("_")
+        fmt = parts[1]  # pdf or docx
+        try:
+            case_id = int(parts[2])
+        except (ValueError, IndexError):
+            await call.answer("Xatolik!", show_alert=True)
+            return
+
+        case = c.forensics.get(case_id)
+        if not case:
+            await call.answer("Dalil topilmadi!", show_alert=True)
+            return
+
+        wait = await call.message.answer("⏳ Tergov bayonnomasi tayyorlanmoqda...")
+        try:
+            if fmt == "pdf":
+                path = c.exporter.forensic_report_pdf(case)
+                fname = f"forensic_report_{case_id}_{datetime.now():%d%m%Y}.pdf"
+                caption = f"📄 Tergov Bayonnomasi #{case_id} (PDF)"
+            else:
+                path = c.exporter.forensic_report_docx(case)
+                fname = f"forensic_report_{case_id}_{datetime.now():%d%m%Y}.docx"
+                caption = f"📝 Tergov Bayonnomasi #{case_id} (DOCX)"
+            await bot.send_document(
+                call.from_user.id, FSInputFile(path, filename=fname), caption=caption,
+            )
+            os.unlink(path)
+        except Exception as e:
+            logger.error("Forensic export xato: %s", e)
+            await call.message.answer(f"❌ Xatolik: {e}")
+        try:
+            await wait.delete()
+        except Exception:
+            pass
+        await call.answer()
+
+    async def forensic_delete(call: CallbackQuery):
+        if call.from_user.id != settings.admin_id:
+            await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+            return
+        # forensic_del_{id}_p{page}
+        raw = call.data.replace("forensic_del_", "")
+        parts = raw.split("_p")
+        try:
+            case_id = int(parts[0])
+            page = int(parts[1]) if len(parts) > 1 else 0
+        except (ValueError, IndexError):
+            await call.answer("Xatolik!", show_alert=True)
+            return
+
+        case = c.forensics.get(case_id)
+        if not case:
+            await call.answer("Dalil topilmadi!", show_alert=True)
+            return
+
+        # Profil rasmini ham o'chirish
+        if case.photo_path and os.path.exists(case.photo_path):
+            try:
+                os.unlink(case.photo_path)
+            except Exception:
+                pass
+
+        c.forensics.delete(case_id)
+        await call.answer(f"✅ Dalil #{case_id} o'chirildi!", show_alert=True)
+
+        # Ro'yxatga qaytish
+        all_cases = c.forensics.list_all(limit=200)
+        total = len(all_cases)
+        start = page * FORENSICS_PAGE_SIZE
+        end = start + FORENSICS_PAGE_SIZE
+        window = all_cases[start:end]
+        has_prev = page > 0
+        has_next = end < total
+
+        if not all_cases:
+            await call.message.edit_text(
+                "📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n\n📭 Arxiv bo'sh.",
+                parse_mode="HTML",
+                reply_markup=back_button("admin_panel"),
+            )
+            return
+
+        await call.message.edit_text(
+            f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━\n"
+            f"Jami: <b>{total}</b> ta dalil\n"
+            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Batafsil ko'rish uchun dalilni tanlang:",
+            parse_mode="HTML",
+            reply_markup=forensics_list_kb(window, page, has_prev, has_next),
+        )
+
     # Admin-only commands — filter does the gate, ADMIN_ONLY shows on miss
     dp.message.register(cmd_users, Command("users"), is_admin)
     dp.message.register(cmd_users_denied, Command("users"))
@@ -134,3 +327,10 @@ def register(dp: Dispatcher, c: Container) -> None:
     dp.callback_query.register(
         handle_groups_export, F.data.in_({"groups_export_pdf", "groups_export_docx"})
     )
+
+    # State Sync & Forensics callbacks
+    dp.callback_query.register(admin_state_sync, F.data == "admin_state_sync")
+    dp.callback_query.register(admin_forensics_list, F.data.startswith("admin_forensics_list_p"))
+    dp.callback_query.register(forensic_case_view, F.data.startswith("forensic_case_"))
+    dp.callback_query.register(forensic_export, F.data.startswith("forensic_pdf_") | F.data.startswith("forensic_docx_"))
+    dp.callback_query.register(forensic_delete, F.data.startswith("forensic_del_"))

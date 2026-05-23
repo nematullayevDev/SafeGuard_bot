@@ -12,10 +12,11 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import (
-    HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    HRFlowable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle, Image as RLImage
 )
+from docx.shared import Inches
 
-from app.models import Group, User
+from app.models import Group, User, ForensicCase
 
 _FONT_CANDIDATES = (
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -221,6 +222,194 @@ class ExportService:
         doc.add_paragraph("")
         if note:
             note_para = doc.add_paragraph(note)
-            note_para.runs[0].italic = True
+            if note_para.runs:
+                note_para.runs[0].italic = True
+        doc.save(tmp.name)
+        return tmp.name
+
+    def forensic_report_pdf(self, case: ForensicCase) -> str:
+        font_name = "Helvetica"
+        font_path = _find_font()
+        if font_path:
+            try:
+                pdfmetrics.registerFont(TTFont("UniFont", font_path))
+                font_name = "UniFont"
+            except Exception:
+                pass
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        doc = SimpleDocTemplate(tmp.name, pagesize=A4,
+                                leftMargin=40, rightMargin=40,
+                                topMargin=40, bottomMargin=40)
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle(
+            "GovTitle", parent=styles["Title"], fontName=font_name, fontSize=11, leading=14, spaceAfter=4
+        )
+        subtitle_style = ParagraphStyle(
+            "GovSubtitle", parent=styles["Title"], fontName=font_name, fontSize=13, leading=16, spaceAfter=15
+        )
+        label_style = ParagraphStyle(
+            "CaseLabel", parent=styles["Normal"], fontName=font_name + "-Bold" if font_path is None else font_name, 
+            fontSize=10, leading=13
+        )
+        value_style = ParagraphStyle(
+            "CaseValue", parent=styles["Normal"], fontName=font_name, fontSize=10, leading=13
+        )
+        text_style = ParagraphStyle(
+            "CaseText", parent=styles["Normal"], fontName=font_name, fontSize=10, leading=14
+        )
+
+        elements = [
+            Paragraph("<b>O'ZBEKISTON RESPUBLIKASI ICHKI ISHLAR VAZIRLIGI</b>", title_style),
+            Paragraph("<b>KIBERXAVFSIZLIK DEPARTAMENTI VA RAQAMLI EKSPERTIZA XULOSASI</b>", subtitle_style),
+            HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#2C3E50")),
+            Spacer(1, 10),
+        ]
+
+        details_data = [
+            [Paragraph("<b>Hujjat raqami (ID):</b>", label_style), Paragraph(f"#{case.id}", value_style)],
+            [Paragraph("<b>Sana va vaqt:</b>", label_style), Paragraph(case.detected_at, value_style)],
+            [Paragraph("<b>Manzil (Guruh):</b>", label_style), Paragraph(f"{case.chat_title} (ID: {case.chat_id})", value_style)],
+            [Paragraph("<b>Qonunbuzarlik turi:</b>", label_style), Paragraph(case.display_violation, value_style)],
+            [Paragraph("<b>Huquqbuzar (Ism):</b>", label_style), Paragraph(case.full_name, value_style)],
+            [Paragraph("<b>Username / ID:</b>", label_style), Paragraph(f"@{case.username if case.username else 'yo'q'} / ID: {case.user_id}", value_style)],
+            [Paragraph("<b>Telefon raqam:</b>", label_style), Paragraph(case.phone if case.phone else "ulashilmagan", value_style)],
+            [Paragraph("<b>Tizim xulosasi:</b>", label_style), Paragraph(case.reason, value_style)],
+        ]
+
+        if case.photo_path and os.path.exists(case.photo_path):
+            try:
+                img = RLImage(case.photo_path, width=110, height=110)
+                t_details = Table(details_data, colWidths=[120, 250])
+                t_details.setStyle(TableStyle([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                
+                layout_table = Table([[t_details, img]], colWidths=[380, 130])
+                layout_table.setStyle(TableStyle([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (1, 0), (1, 0), "CENTER"),
+                ]))
+                elements.append(layout_table)
+            except Exception:
+                t_details = Table(details_data, colWidths=[130, 380])
+                t_details.setStyle(TableStyle([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                elements.append(t_details)
+        else:
+            t_details = Table(details_data, colWidths=[130, 380])
+            t_details.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            elements.append(t_details)
+
+        elements.append(Spacer(1, 15))
+        elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
+        elements.append(Spacer(1, 10))
+
+        elements.append(Paragraph("<b>ASLIY JINOYAT ASYOSI (DALIL MATNI):</b>", label_style))
+        elements.append(Spacer(1, 5))
+        
+        msg_box_data = [[Paragraph(f'<i>"{_escape_html(case.message_text)}"</i>', text_style)]]
+        msg_table = Table(msg_box_data, colWidths=[510])
+        msg_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+            ("PADDING", (0, 0), (-1, -1), 10),
+            ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#E2E8F0")),
+        ]))
+        elements.append(msg_table)
+
+        elements.append(Spacer(1, 20))
+        
+        legal_note = {
+            "extremism": "Ushbu bayonnoma O'zbekiston Respublikasi JK 244-1-moddasi (Jamoat xavfsizligiga tahdid soluvchi materiallarni tarqatish) bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
+            "drugs": "Ushbu bayonnoma O'zbekiston Respublikasi JK 273-moddasi (Giyohvandlik moddalari savdosi va yashirin aylanmasi) bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
+            "bullying": "Ushbu bayonnoma O'zbekiston Respublikasi JK 140-moddasi (Haqorat qilish) hamda MJtK 41-moddasiga ko'ra dalil sifatida foydalanilishi mumkin."
+        }.get(case.violation_type, "Ushbu hujjat kiber-ekspertiza dalili sifatida tergov organlariga taqdim etiladi.")
+
+        elements.append(Paragraph(f"<b>Eslatma:</b> <i>{legal_note}</i>", value_style))
+        elements.append(Spacer(1, 30))
+        
+        sig_data = [
+            [Paragraph("<b>Mas'ul ekspert:</b>", value_style), Paragraph("________________________", value_style), Paragraph("(Imzo)", value_style)],
+            [Paragraph("<b>Departament boshlig'i:</b>", value_style), Paragraph("________________________", value_style), Paragraph("(Imzo)", value_style)]
+        ]
+        sig_table = Table(sig_data, colWidths=[150, 200, 100])
+        sig_table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(sig_table)
+
+        doc.build(elements)
+        return tmp.name
+
+    def forensic_report_docx(self, case: ForensicCase) -> str:
+        tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
+        doc = Document()
+        
+        h1 = doc.add_heading("O'ZBEKISTON RESPUBLIKASI ICHKI ISHLAR VAZIRLIGI", 1)
+        h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        h2 = doc.add_heading("KIBERXAVFSIZLIK DEPARTAMENTI VA RAQAMLI EKSPERTIZA XULOSASI", 2)
+        h2.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        
+        doc.add_paragraph("Sana: " + datetime.now().strftime("%d.%m.%Y %H:%M"))
+        doc.add_paragraph(f"Bayonnoma ID: #{case.id}")
+        doc.add_paragraph("-" * 80)
+        
+        table = doc.add_table(rows=0, cols=2)
+        table.style = "Table Grid"
+        
+        def add_row(lbl, val):
+            row_cells = table.add_row().cells
+            row_cells[0].text = lbl
+            row_cells[0].paragraphs[0].runs[0].bold = True
+            row_cells[1].text = str(val)
+
+        add_row("Tergov ID raqami:", f"#{case.id}")
+        add_row("Sana va vaqt:", case.detected_at)
+        add_row("Manzil (Guruh):", f"{case.chat_title} (ID: {case.chat_id})")
+        add_row("Qonunbuzarlik turi:", case.display_violation)
+        add_row("Huquqbuzar ismi:", case.full_name)
+        add_row("Username / Telegram ID:", f"@{case.username if case.username else 'yo\'q'} / ID: {case.user_id}")
+        add_row("Telefon raqami:", case.phone if case.phone else "ulashilmagan")
+        add_row("Tizim tahlili sababi:", case.reason)
+        
+        doc.add_paragraph("")
+        
+        if case.photo_path and os.path.exists(case.photo_path):
+            try:
+                doc.add_paragraph("Huquqbuzar Telegram profil rasmi (Dalil):")
+                doc.add_picture(case.photo_path, width=Inches(2.0))
+                doc.add_paragraph("")
+            except Exception:
+                pass
+                
+        doc.add_heading("ASLIY JINOYAT ASYOSI (DALIL MATNI)", 3)
+        evidence_para = doc.add_paragraph()
+        evidence_para.paragraph_format.left_indent = Inches(0.5)
+        run = evidence_para.add_run(f'"{case.message_text}"')
+        run.italic = True
+        
+        doc.add_paragraph("")
+        doc.add_paragraph("-" * 80)
+        
+        legal_note = {
+            "extremism": "Ushbu bayonnoma O'zbekiston Respublikasi JK 244-1-moddasi bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
+            "drugs": "Ushbu bayonnoma O'zbekiston Respublikasi JK 273-moddasi bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
+            "bullying": "Ushbu bayonnoma O'zbekiston Respublikasi JK 140-moddasi hamda MJtK 41-moddasiga ko'ra dalil sifatida ishlatilishi mumkin."
+        }.get(case.violation_type, "Kiber-ekspertiza dalil bayonnomasi.")
+        
+        doc.add_paragraph(f"Eslatma: {legal_note}")
+        doc.add_paragraph("")
+        doc.add_paragraph("Mas'ul ekspert: ________________________ (Imzo)")
+        doc.add_paragraph("Departament boshlig'i: ________________________ (Imzo)")
+        
         doc.save(tmp.name)
         return tmp.name

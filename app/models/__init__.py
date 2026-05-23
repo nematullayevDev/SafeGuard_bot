@@ -6,7 +6,9 @@ from app.models.stats import BotStats
 from app.models.user import User
 from app.models.warning import Warning
 
+from app.models.forensic import ForensicCase
+
 __all__ = [
     "BannedSite", "BotStats", "Group", "HistoryEntry", "ItemType",
-    "ScanResult", "ScanVerdict", "User", "Warning",
+    "ScanResult", "ScanVerdict", "User", "Warning", "ForensicCase",
 ]

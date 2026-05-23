@@ -1,5 +1,7 @@
 """Group-protection handlers: join/leave, warn commands, file/link scanning."""
 import logging
+import os
+from datetime import datetime
 
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
@@ -13,6 +15,7 @@ from app.models import ScanVerdict
 from app.services import extract_links
 from app.views import formatters
 from app.views.texts import GROUP_ADDED, GROUP_ADMIN_ONLY
+from app.repositories.base import get_conn
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,67 @@ async def _safe_delete(msg: Message | None) -> None:
         await msg.delete()
     except Exception:
         pass
+
+
+async def _save_forensics_case(message: Message, violation_type: str, reason: str, c: Container) -> None:
+    sender = message.from_user
+    if not sender:
+        return
+    
+    sender_id = sender.id
+    full_name = sender.full_name
+    username = sender.username or ""
+    chat_id = message.chat.id
+    chat_title = message.chat.title or "Guruh"
+    message_text = message.text or message.caption or ""
+
+    phone = ""
+    try:
+        with get_conn() as conn:
+            row = conn.execute("SELECT phone FROM users WHERE user_id = ?", (sender_id,)).fetchone()
+            if row and row[0]:
+                phone = row[0]
+    except Exception as e:
+        logger.warning(f"Forensika uchun telefon raqamini olishda xatolik: {e}")
+
+    photo_path = None
+    try:
+        photos = await bot.get_user_profile_photos(user_id=sender_id, limit=1)
+        if photos and photos.photos:
+            file_id = photos.photos[0][-1].file_id
+            file_info = await bot.get_file(file_id)
+            downloaded = await bot.download_file(file_info.file_path)
+            
+            photos_dir = os.path.join(settings.base_dir, "forensics_photos")
+            os.makedirs(photos_dir, exist_ok=True)
+            
+            filename = f"user_{sender_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+            full_path = os.path.join(photos_dir, filename)
+            
+            with open(full_path, "wb") as f:
+                f.write(downloaded.read())
+            
+            photo_path = full_path
+            logger.info(f"Huquqbuzar profil rasmi yuklab olindi: {photo_path}")
+    except Exception as e:
+        logger.warning(f"Huquqbuzar profil rasmini yuklab olishda xatolik (normal holat): {e}")
+
+    try:
+        case_id = c.forensics.save(
+            chat_id=chat_id,
+            chat_title=chat_title,
+            user_id=sender_id,
+            full_name=full_name,
+            username=username,
+            phone=phone,
+            message_text=message_text,
+            violation_type=violation_type,
+            reason=reason,
+            photo_path=photo_path
+        )
+        logger.info(f"Tergov dalillar arxivida saqlandi: Case ID #{case_id}")
+    except Exception as e:
+        logger.error(f"Tergov dalilini saqlashda xatolik: {e}")
 
 
 def register(dp: Dispatcher, c: Container) -> None:
@@ -128,6 +192,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                     chat_id, formatters.dangerous_file_warning(result, mention),
                     parse_mode="HTML",
                 )
+                await _save_forensics_case(message, "file", f"Antivirus xavfli deb topgan fayl yubordi: {file_name} ({result.malicious} ta tahdid)", c)
                 await c.moderator.warn_or_ban(chat_id, sender_id, sender, "Xavfli fayl yuborish")
             else:
                 await _safe_delete(wait)
@@ -162,9 +227,12 @@ def register(dp: Dispatcher, c: Container) -> None:
                 parse_mode="HTML"
             )
             
+            # Forensika arxivida saqlash
+            await _save_forensics_case(message, category, reason, c)
+
             # Moderatsiya: warn yoki ban
             reason_map = {
-                "extremism": "Diniy ekstremizm va radikalizm targ'iboti",
+                "extremism": "Diniy extremism va radikalizm targ'iboti",
                 "drugs": "Giyohvand moddalar yoki preparatlar yashirin savdosi/targ'iboti",
                 "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi"
             }
@@ -191,6 +259,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                         chat_id, formatters.blacklisted_link_warning(mention),
                         parse_mode="HTML",
                     )
+                    await _save_forensics_case(message, "link", f"Qora ro'yxatdagi xavfli link yubordi: {url}", c)
                     await c.moderator.warn_or_ban(
                         chat_id, sender_id, sender, "Qora ro'yxatdagi link"
                     )
@@ -205,6 +274,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                         chat_id, formatters.dangerous_link_warning(result, mention),
                         parse_mode="HTML",
                     )
+                    await _save_forensics_case(message, "link", f"Antivirus xavfli deb topgan link yubordi: {url} ({result.malicious} ta tahdid)", c)
                     await c.moderator.warn_or_ban(
                         chat_id, sender_id, sender, "Xavfli link yuborish"
                     )

@@ -18,7 +18,7 @@ CYR_TO_LAT_MAP = {
     'Ё': 'Yo', 'ё': 'yo',
     'Ж': 'J', 'ж': 'j',
     'З': 'Z', 'з': 'z',
-    'И': 'I', 'i': 'i', 'и': 'i',
+    'И': 'I', 'и': 'i',
     'Й': 'Y', 'й': 'y',
     'К': 'K', 'к': 'k',
     'Л': 'L', 'л': 'l',
@@ -134,20 +134,20 @@ class UzbekNLPService:
         }
         
         self._drugs_keywords = {
-            "sol", "mefedron", "mef", "kristall", "geroin", "ko'knor", "konoplya", 
+            "soli", "soli dori", "mefedron", "mef", "kristall", "geroin", "ko'knor", "konoplya", 
             "tramadol", "lyrika", "lrika", "lira", "skorost", "spays", "doperun", 
             "kladmen", "klad", "kurir", "kuryer", "zakladka", "anasha", "gash", 
             "gashish", "tropicamid", "tropikamid", "sintetika", "giyohvand", 
             "psixotrop", "baku", "reglan", "optom sol", "narkotik", "koks", 
             "kokain", "nasha", "nasha urug'i", "atxod", "preparat", "giyoh", 
-            "shirinlik", "tuz", "kristal"
+            "shirinlik", "kristal"
         }
         
         self._bullying_keywords = {
             "suka", "jalap", "blat", "am", "qo'tag'", "qotoq", "qanciq", "yaramas", 
             "iflos", "o'ldir", "so'yaman", "sharmanda", "gandon", "kot", "pidar", 
             "dalbayob", "axmoq", "xarom", "harom", "yebsan", "sik", "sikaman", 
-            "koting", "jallod", "chort", "tvar", "gandonlar", "kallangni", "kalla", 
+            "koting", "jallod", "chort", "tvar", "gandonlar", "kallangni", 
             "tahdid", "zo'rlayman", "ursang", "o'ldiraman", "yuzingni yirtaman", 
             "sharmandangni chiqaraman", "gejga solaman", "urib o'ldiraman"
         }
@@ -267,7 +267,7 @@ class UzbekNLPService:
                 }
                 
                 async with aiohttp.ClientSession() as session:
-                    async with session.post(url, json=payload, timeout=8) as response:
+                    async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=8)) as response:
                         if response.status == 200:
                             data = await response.json()
                             content_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()

@@ -60,6 +60,22 @@ def init_schema() -> None:
                 added_at TEXT
             )
         """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS forensics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_id INTEGER,
+                chat_title TEXT,
+                user_id INTEGER,
+                full_name TEXT,
+                username TEXT,
+                phone TEXT,
+                message_text TEXT,
+                violation_type TEXT,
+                reason TEXT,
+                detected_at TEXT,
+                photo_path TEXT
+            )
+        """)
 
         # banned_sites — migrate legacy table missing UNIQUE constraint
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='banned_sites'")

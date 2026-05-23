@@ -7,9 +7,10 @@ from app.repositories.settings_repo import SettingsRepository
 from app.repositories.stats_repo import StatsRepository
 from app.repositories.user_repo import UserRepository
 from app.repositories.warning_repo import WarningRepository
+from app.repositories.forensic_repo import ForensicRepository
 
 __all__ = [
     "BannedSiteRepository", "BlacklistRepository", "GroupRepository",
     "HistoryRepository", "SettingsRepository", "StatsRepository",
-    "UserRepository", "WarningRepository", "init_schema",
+    "UserRepository", "WarningRepository", "ForensicRepository", "init_schema",
 ]

@@ -4,7 +4,8 @@ import logging
 import os
 
 from aiohttp import web
-from aiogram.webhook.aiohttp_impl import SimpleRequestHandler, setup_application
+# TUZATILDI: aiohttp_impl o'rniga aiohttp_server ishlatildi
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 
 from app.container import build_container
 from app.controllers import register_all
@@ -30,6 +31,22 @@ async def start_health_check_server() -> None:
     site = web.TCPSite(runner, "0.0.0.0", port)
     await site.start()
     logger.info(f"🚀 Dummy server {port}-portda ishga tushdi!")
+
+
+async def self_ping(url: str, interval: int = 600) -> None:
+    """Periodically pings the health check endpoint to prevent Render from sleeping."""
+    await asyncio.sleep(30)  # Wait 30s to let the server start fully
+    logger.info(f"Self-ping xizmati ishga tushdi: {url}")
+    import aiohttp
+    async with aiohttp.ClientSession() as session:
+        while True:
+            try:
+                # Ping the health check endpoint
+                async with session.get(url, timeout=15) as resp:
+                    logger.info(f"Self-ping muvaffaqiyatli: status={resp.status}")
+            except Exception as e:
+                logger.warning(f"Self-pingda xatolik: {e}")
+            await asyncio.sleep(interval)
 
 
 async def main() -> None:
@@ -58,13 +75,22 @@ async def main() -> None:
         
         # Telegram webhookni sozlash
         webhook_target = f"{webhook_url.rstrip('/')}/webhook"
-        await bot.set_webhook(webhook_target)
-        logger.info(f"🚀 Webhook muvaffaqiyatli o'rnatildi: {webhook_target}")
+        try:
+            await bot.set_webhook(webhook_target)
+            logger.info(f"🚀 Webhook muvaffaqiyatli o'rnatildi: {webhook_target}")
+        except Exception as e:
+            logger.error(f"❌ Telegram Webhook-ni sozlashda xatolik: {e}")
+            
         logger.info(f"⚡ Bot {port}-portda so'rovlarni qabul qilmoqda!")
+        
+        # Render serverini uyg'oq ushlab turish uchun o'z-o'zini ping qilish xizmati
+        asyncio.create_task(self_ping(webhook_url))
         
         # Jarayonni cheksiz kutish rejimida ushlab turamiz
         try:
             await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            pass
         finally:
             logger.info("🧹 Webhook serveri yopilmoqda, resurslar tozalanmoqda...")
             try:
@@ -86,7 +112,7 @@ async def main() -> None:
             logger.info(f"🚀 Dummy server {port}-portda ishga tushdi!")
 
         logger.info("✅ SafeGuard Bot polling rejimida ishga tushdi!")
-        # Eski webhookni tozalash
+        # Eski webhookni tozalash va eski kelib qolgan so'rovlarni o'chirish
         await bot.delete_webhook(drop_pending_updates=True)
         try:
             await dp.start_polling(bot)
