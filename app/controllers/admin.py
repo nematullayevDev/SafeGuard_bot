@@ -147,7 +147,21 @@ def register(dp: Dispatcher, c: Container) -> None:
             await call.message.answer(f"❌ Sinxronizatsiya xatosi: {e}")
         await call.answer()
 
-    # ─── Forensics ────────────────────────────────────
+    # ─── Forensics Main Menu ──────────────────────────
+    async def admin_forensics_main(call: CallbackQuery):
+        if call.from_user.id != settings.admin_id:
+            await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+            return
+        from app.views.keyboards import forensics_main_menu
+        await call.message.edit_text(
+            "📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n\n"
+            "Gumondorlar ro'yxatini ko'rish uchun tegishli yo'nalishni tanlang:\n\n"
+            "📌 Ma'lumotlar ochiq ma'lumotlar hamda tizim tahlili asosida shakllantirilgan.",
+            reply_markup=forensics_main_menu(), parse_mode="HTML",
+        )
+        await call.answer()
+
+    # ─── Forensics Suspects List ──────────────────────
     async def admin_forensics_list(call: CallbackQuery):
         if call.from_user.id != settings.admin_id:
             await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
@@ -185,7 +199,10 @@ def register(dp: Dispatcher, c: Container) -> None:
             "all": "🌐 Barcha dalillar",
         }.get(category, "Tergov")
 
-        text = formatters.forensics_page(category_label, window, start + 1, total)
+        total_pages = max(1, (total + FORENSICS_PAGE_SIZE - 1) // FORENSICS_PAGE_SIZE)
+        page_num = page + 1
+        end_num = min(start + FORENSICS_PAGE_SIZE, total)
+        text = formatters.forensics_list_text(category_label, total, page_num, total_pages, start + 1, end_num)
 
         await call.message.edit_text(
             text,
@@ -411,6 +428,7 @@ def register(dp: Dispatcher, c: Container) -> None:
 
     # State Sync & Forensics callbacks
     dp.callback_query.register(admin_state_sync, F.data == "admin_state_sync")
+    dp.callback_query.register(admin_forensics_main, F.data == "admin_forensics_main")
     dp.callback_query.register(admin_forensics_list, F.data.startswith("admin_forensics_list_p"))
     dp.callback_query.register(forensic_case_view, F.data.startswith("forensic_case_"))
     dp.callback_query.register(forensic_export, F.data.startswith("forensic_pdf_") | F.data.startswith("forensic_docx_"))

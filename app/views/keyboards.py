@@ -55,13 +55,28 @@ def admin_panel_menu() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="🏛 Davlat Integratsiyasi", callback_data="admin_state_sync"),
-            InlineKeyboardButton(text="📂 Kiber-Tergov", callback_data="admin_forensics_list_p0"),
+            InlineKeyboardButton(text="📂 Kiber-Tergov", callback_data="admin_forensics_main"),
         ],
         [InlineKeyboardButton(text="🤖 Bot qaysi guruhlarda", callback_data="admin_groups")],
         [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
         [InlineKeyboardButton(text="🚫 Taqiqlangan Saytlar", callback_data="admin_banned_sites")],
         [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
     ])
+
+
+def forensics_main_menu() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🚨 Ekstremizm", callback_data="admin_forensics_list_p0_cextremism"),
+            InlineKeyboardButton(text="💊 Giyohvandlik", callback_data="admin_forensics_list_p0_cdrugs"),
+        ],
+        [
+            InlineKeyboardButton(text="⚠️ Kiberbulling", callback_data="admin_forensics_list_p0_cbullying"),
+            InlineKeyboardButton(text="🌐 Barchasi", callback_data="admin_forensics_list_p0_call"),
+        ],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")]
+    ])
+
 
 
 def back_button(to: str = "main_menu") -> InlineKeyboardMarkup:
@@ -202,36 +217,20 @@ def go_start_kb() -> InlineKeyboardMarkup:
 def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category: str = "all") -> InlineKeyboardMarkup:
     rows = []
     
-    # 1. Category Filter Buttons at the top
-    filters = [
-        InlineKeyboardButton(text="🚨 Ekstrem" + (" ✅" if category == "extremism" else ""), callback_data="admin_forensics_list_p0_cextremism"),
-        InlineKeyboardButton(text="💊 Giyoh" + (" ✅" if category == "drugs" else ""), callback_data="admin_forensics_list_p0_cdrugs"),
-    ]
-    filters2 = [
-        InlineKeyboardButton(text="⚠️ Bulling" + (" ✅" if category == "bullying" else ""), callback_data="admin_forensics_list_p0_cbullying"),
-        InlineKeyboardButton(text="🌐 Barchasi" + (" ✅" if category == "all" else ""), callback_data="admin_forensics_list_p0_call"),
-    ]
-    rows.append(filters)
-    rows.append(filters2)
-    
-    # Divider line
-    rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
-    
-    # 2. Numbered Buttons for selection (1, 2, ..., len(cases))
-    num_buttons = []
-    start_num = page * 20 + 1
-    for idx, c in enumerate(cases):
-        display_num = start_num + idx
-        num_buttons.append(InlineKeyboardButton(
-            text=str(display_num),
+    # 1. Suspects' names as buttons (one button per row)
+    for c in cases:
+        name = c.full_name.strip() if c.full_name and c.full_name.strip() not in (".", "") else f"Gumondor #{c.user_id}"
+        short_name = name[:28] + "..." if len(name) > 28 else name
+        rows.append([InlineKeyboardButton(
+            text=f"👤 {short_name}",
             callback_data=f"forensic_case_{c.id}_p{page}_c{category}"
-        ))
-    
-    # Grid: 5 buttons per row
-    for i in range(0, len(num_buttons), 5):
-        rows.append(num_buttons[i:i+5])
-    
-    # 3. Navigation Buttons
+        )])
+        
+    # Divider line if there are cases
+    if cases:
+        rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
+        
+    # 2. Navigation Buttons
     nav = []
     if has_prev:
         nav.append(InlineKeyboardButton(text="◀️ Oldingi", callback_data=f"admin_forensics_list_p{page - 1}_c{category}"))
@@ -240,17 +239,19 @@ def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category
     if nav:
         rows.append(nav)
         
-    # Divider line before exports
-    rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
-    
-    # 4. Bulk Export Buttons - note the callback format matches forensiclist_pdf_{category}
+    # Divider line before exports if there are cases
+    if cases:
+        rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
+        
+    # 3. Bulk Export Buttons
     rows.append([
         InlineKeyboardButton(text="📥 PDF Yuklab olish", callback_data=f"forensiclist_pdf_{category}"),
         InlineKeyboardButton(text="📥 DOCX Yuklab olish", callback_data=f"forensiclist_docx_{category}")
     ])
         
-    rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")])
+    rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_forensics_main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 
 
