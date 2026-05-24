@@ -1,6 +1,6 @@
 """Schema bootstrap — creates all tables and seeds banned_sites."""
 from app.repositories.base import get_conn
-from app.repositories.seed_data import seed_banned_sites
+from app.repositories.seed_data import seed_banned_sites, seed_forensics
 
 
 def init_schema() -> None:
@@ -112,3 +112,4 @@ def init_schema() -> None:
             """)
 
         seed_banned_sites(c)
+        seed_forensics(c)

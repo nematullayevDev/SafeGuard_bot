@@ -185,25 +185,10 @@ def register(dp: Dispatcher, c: Container) -> None:
             "all": "🌐 Barcha dalillar",
         }.get(category, "Tergov")
 
-        if not all_cases:
-            await call.message.edit_text(
-                f"📂 <b>Kiber-Tergov Dalillari Arxivi ({category_label})</b>\n\n"
-                f"📭 Hozircha ushbu bo'limda hech qanday tergov dalili mavjud emas.\n\n"
-                f"<i>Gumondorlar faoliyati aniqlanganda, tizim avtomatik ravishda bu yerda saqlaydi.</i>",
-                parse_mode="HTML",
-                reply_markup=forensics_list_kb([], 0, False, False, category),
-            )
-            await call.answer()
-            return
+        text = formatters.forensics_page(category_label, window, start + 1, total)
 
         await call.message.edit_text(
-            f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n"
-            f"Kategoriya: <b>{category_label}</b>\n"
-            f"Jami: <b>{total}</b> ta dalil | "
-            f"Sahifa: {page + 1}/{max(1, (total + FORENSICS_PAGE_SIZE - 1) // FORENSICS_PAGE_SIZE)}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"Batafsil ko'rish uchun dalilni tanlang:",
+            text,
             parse_mode="HTML",
             reply_markup=forensics_list_kb(window, page, has_prev, has_next, category),
         )
@@ -356,8 +341,12 @@ def register(dp: Dispatcher, c: Container) -> None:
         
         # forensiclist_pdf_{category} or forensiclist_docx_{category}
         parts = call.data.split("_")
-        fmt = parts[0].replace("forensiclist", "")  # pdf or docx
-        category = parts[1] if len(parts) > 1 else "all"
+        if len(parts) >= 3:
+            fmt = parts[1]
+            category = parts[2]
+        else:
+            fmt = parts[0].replace("forensiclist", "")
+            category = parts[1] if len(parts) > 1 else "all"
         
         category_lbl = {
             "extremism": "Diniy Ekstremizm",

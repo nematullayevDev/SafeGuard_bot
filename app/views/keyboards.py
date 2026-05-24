@@ -217,20 +217,19 @@ def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category
     # Divider line
     rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
     
-    # 2. Case List Items (Up to 20 items per page)
-    for c in cases:
-        short_name = c.full_name[:12] + ".." if len(c.full_name) > 12 else c.full_name
-        violation_lbl = {
-            "extremism": "🚨 Ekstrem",
-            "drugs": "💊 Giyoh",
-            "bullying": "⚠️ Bulling",
-            "link": "🔗 Havola",
-            "file": "📦 Fayl",
-        }.get(c.violation_type, "🚫 Buzar")
-        rows.append([InlineKeyboardButton(
-            text=f"ID #{c.id}: {short_name} ({violation_lbl})",
+    # 2. Numbered Buttons for selection (1, 2, ..., len(cases))
+    num_buttons = []
+    start_num = page * 20 + 1
+    for idx, c in enumerate(cases):
+        display_num = start_num + idx
+        num_buttons.append(InlineKeyboardButton(
+            text=str(display_num),
             callback_data=f"forensic_case_{c.id}_p{page}_c{category}"
-        )])
+        ))
+    
+    # Grid: 5 buttons per row
+    for i in range(0, len(num_buttons), 5):
+        rows.append(num_buttons[i:i+5])
     
     # 3. Navigation Buttons
     nav = []
@@ -244,7 +243,7 @@ def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category
     # Divider line before exports
     rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
     
-    # 4. Bulk Export Buttons
+    # 4. Bulk Export Buttons - note the callback format matches forensiclist_pdf_{category}
     rows.append([
         InlineKeyboardButton(text="📥 PDF Yuklab olish", callback_data=f"forensiclist_pdf_{category}"),
         InlineKeyboardButton(text="📥 DOCX Yuklab olish", callback_data=f"forensiclist_docx_{category}")
@@ -252,6 +251,7 @@ def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category
         
     rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
 
 
 def forensic_detail_kb(case_id: int, page: int, category: str = "all") -> InlineKeyboardMarkup:

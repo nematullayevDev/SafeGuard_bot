@@ -308,3 +308,42 @@ def forensic_case_detail(case: ForensicCase) -> str:
     )
 
 
+def forensics_page(category_label: str, cases: Sequence[ForensicCase], start_num: int, total: int) -> str:
+    if not cases:
+        return (
+            f"📂 <b>Kiber-Tergov Dalillari Arxivi ({category_label})</b>\n\n"
+            f"📭 Hozircha ushbu bo'limda hech qanday tergov dalili mavjud emas.\n\n"
+            f"<i>Gumondorlar faoliyati aniqlanganda, tizim avtomatik ravishda bu yerda saqlaydi.</i>"
+        )
+    
+    end_num = start_num + len(cases) - 1
+    lines = []
+    for idx, c in enumerate(cases):
+        violation_icon = {
+            "extremism": "🧠",
+            "drugs": "💊",
+            "bullying": "👤",
+            "link": "🔗",
+            "file": "📦",
+        }.get(c.violation_type, "🚨")
+        lines.append(f"{start_num + idx}. {violation_icon} {c.full_name} (ID: #{c.id})")
+        
+    body = "\n".join(lines)
+    total_pages = max(1, (total + 20 - 1) // 20)
+    page_num = (start_num - 1) // 20 + 1
+    
+    text = (
+        f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Kategoriya: <b>{category_label}</b>\n"
+        f"Jami: <b>{total}</b> ta dalil | Sahifa: <b>{page_num}/{total_pages}</b>\n"
+        f"Ko'rsatilmoqda: <b>{start_num}-{end_num}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{body}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Batafsil ko'rish va yuklab olish uchun dalil raqamini tanlang:"
+    )
+    return text
+
+
+
