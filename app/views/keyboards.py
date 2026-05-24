@@ -199,7 +199,7 @@ def go_start_kb() -> InlineKeyboardMarkup:
     ])
 
 
-def forensics_list_kb(category: str = "all") -> InlineKeyboardMarkup:
+def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category: str = "all") -> InlineKeyboardMarkup:
     rows = []
     
     # 1. Category Filter Buttons at the top
@@ -214,10 +214,37 @@ def forensics_list_kb(category: str = "all") -> InlineKeyboardMarkup:
     rows.append(filters)
     rows.append(filters2)
     
+    # Divider line
+    rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
+    
+    # 2. Case List Items (Up to 20 items per page)
+    for c in cases:
+        short_name = c.full_name[:12] + ".." if len(c.full_name) > 12 else c.full_name
+        violation_lbl = {
+            "extremism": "🚨 Ekstrem",
+            "drugs": "💊 Giyoh",
+            "bullying": "⚠️ Bulling",
+            "link": "🔗 Havola",
+            "file": "📦 Fayl",
+        }.get(c.violation_type, "🚫 Buzar")
+        rows.append([InlineKeyboardButton(
+            text=f"ID #{c.id}: {short_name} ({violation_lbl})",
+            callback_data=f"forensic_case_{c.id}_p{page}_c{category}"
+        )])
+    
+    # 3. Navigation Buttons
+    nav = []
+    if has_prev:
+        nav.append(InlineKeyboardButton(text="◀️ Oldingi", callback_data=f"admin_forensics_list_p{page - 1}_c{category}"))
+    if has_next:
+        nav.append(InlineKeyboardButton(text="Keyingi ▶️", callback_data=f"admin_forensics_list_p{page + 1}_c{category}"))
+    if nav:
+        rows.append(nav)
+        
     # Divider line before exports
     rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
     
-    # 2. Bulk Export Buttons
+    # 4. Bulk Export Buttons
     rows.append([
         InlineKeyboardButton(text="📥 PDF Yuklab olish", callback_data=f"forensiclist_pdf_{category}"),
         InlineKeyboardButton(text="📥 DOCX Yuklab olish", callback_data=f"forensiclist_docx_{category}")

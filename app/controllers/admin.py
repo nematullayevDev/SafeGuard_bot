@@ -156,8 +156,10 @@ def register(dp: Dispatcher, c: Container) -> None:
         # admin_forensics_list_p{page}_c{category}
         raw = call.data.replace("admin_forensics_list_p", "")
         parts = raw.split("_c")
+        page = 0
         category = "all"
         try:
+            page = int(parts[0])
             if len(parts) > 1:
                 category = parts[1]
         except ValueError:
@@ -169,6 +171,12 @@ def register(dp: Dispatcher, c: Container) -> None:
             all_cases = c.forensics.list_filtered(category, limit=1000)
             
         total = len(all_cases)
+        
+        start = page * FORENSICS_PAGE_SIZE
+        end = start + FORENSICS_PAGE_SIZE
+        window = all_cases[start:end]
+        has_prev = page > 0
+        has_next = end < total
 
         category_label = {
             "extremism": "🚨 Ekstremizm",
@@ -177,15 +185,27 @@ def register(dp: Dispatcher, c: Container) -> None:
             "all": "🌐 Barcha dalillar",
         }.get(category, "Tergov")
 
+        if not all_cases:
+            await call.message.edit_text(
+                f"📂 <b>Kiber-Tergov Dalillari Arxivi ({category_label})</b>\n\n"
+                f"📭 Hozircha ushbu bo'limda hech qanday tergov dalili mavjud emas.\n\n"
+                f"<i>Gumondorlar faoliyati aniqlanganda, tizim avtomatik ravishda bu yerda saqlaydi.</i>",
+                parse_mode="HTML",
+                reply_markup=forensics_list_kb([], 0, False, False, category),
+            )
+            await call.answer()
+            return
+
         await call.message.edit_text(
             f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
             f"Kategoriya: <b>{category_label}</b>\n"
-            f"Jami: <b>{total}</b> ta dalil\n"
+            f"Jami: <b>{total}</b> ta dalil | "
+            f"Sahifa: {page + 1}/{max(1, (total + FORENSICS_PAGE_SIZE - 1) // FORENSICS_PAGE_SIZE)}\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"Ushbu toifadagi barcha tergov dalillarini PDF yoki DOCX (Word) shaklida bitta tugma orqali yuklab olishingiz mumkin:",
+            f"Batafsil ko'rish uchun dalilni tanlang:",
             parse_mode="HTML",
-            reply_markup=forensics_list_kb(category),
+            reply_markup=forensics_list_kb(window, page, has_prev, has_next, category),
         )
         await call.answer()
 
@@ -296,6 +316,11 @@ def register(dp: Dispatcher, c: Container) -> None:
             all_cases = c.forensics.list_filtered(category, limit=1000)
             
         total = len(all_cases)
+        start = page * FORENSICS_PAGE_SIZE
+        end = start + FORENSICS_PAGE_SIZE
+        window = all_cases[start:end]
+        has_prev = page > 0
+        has_next = end < total
 
         category_label = {
             "extremism": "🚨 Ekstremizm",
@@ -304,15 +329,24 @@ def register(dp: Dispatcher, c: Container) -> None:
             "all": "🌐 Barcha dalillar",
         }.get(category, "Tergov")
 
+        if not all_cases:
+            await call.message.edit_text(
+                f"📂 <b>Kiber-Tergov Dalillari Arxivi ({category_label})</b>\n\n📭 Arxiv bo'sh.",
+                parse_mode="HTML",
+                reply_markup=back_button("admin_panel"),
+            )
+            return
+
         await call.message.edit_text(
             f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
             f"Kategoriya: <b>{category_label}</b>\n"
-            f"Jami: <b>{total}</b> ta dalil\n"
+            f"Jami: <b>{total}</b> ta dalil | "
+            f"Sahifa: {page + 1}/{max(1, (total + FORENSICS_PAGE_SIZE - 1) // FORENSICS_PAGE_SIZE)}\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"Ushbu toifadagi barcha tergov dalillarini PDF yoki DOCX (Word) shaklida bitta tugma orqali yuklab olishingiz mumkin:",
+            f"Batafsil ko'rish uchun dalilni tanlang:",
             parse_mode="HTML",
-            reply_markup=forensics_list_kb(category),
+            reply_markup=forensics_list_kb(window, page, has_prev, has_next, category),
         )
 
     async def bulk_forensics_export(call: CallbackQuery):
