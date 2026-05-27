@@ -105,7 +105,7 @@ async def main() -> None:
             await bot.set_webhook(webhook_target)
             logger.info(f"🚀 Webhook muvaffaqiyatli o'rnatildi: {webhook_target}")
         except Exception as e:
-            logger.error(f"❌ Telegram Webhook-ni sozlashda xatolik: {e}")
+            logger.error(f"❌ Telegram Wpebhook-ni sozlashda xatolik: {e}")
             
         logger.info(f"⚡ Bot {port}-portda so'rovlarni qabul qilmoqda!")
         
