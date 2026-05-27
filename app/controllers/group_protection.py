@@ -5,7 +5,7 @@ from datetime import datetime
 
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
-from aiogram.types import ChatMemberUpdated, Message
+from aiogram.types import ChatMemberUpdated, Message, CallbackQuery
 
 from app.container import Container
 from app.controllers.filters import is_chat_admin
@@ -13,7 +13,7 @@ from app.core.bot import bot
 from app.core.config import settings
 from app.models import ScanVerdict
 from app.services import extract_links
-from app.views import formatters
+from app.views import formatters, keyboards
 from app.views.texts import GROUP_ADDED, GROUP_ADMIN_ONLY
 from app.repositories.base import get_conn
 
@@ -166,6 +166,12 @@ def register(dp: Dispatcher, c: Container) -> None:
         chat_id = message.chat.id
         if not c.user_settings.get_group_mode(chat_id):
             return
+        
+        # Check files settings filter
+        filters = c.user_settings.get_group_settings(chat_id)
+        if not filters.get("filter_files", True):
+            return
+
         sender = message.from_user.first_name if message.from_user else "Noma'lum"
         sender_id = message.from_user.id if message.from_user else 0
         doc = message.document
@@ -178,9 +184,10 @@ def register(dp: Dispatcher, c: Container) -> None:
             "⏳ <b>Tekshirilmoqda...</b>\n🛡 Ochishga shoshilmang!", parse_mode="HTML"
         )
         try:
-            info = await bot.get_file(doc.file_id)
-            downloaded = await bot.download_file(info.file_path)
-            file_bytes = downloaded.read()
+            import io
+            downloaded = io.BytesIO()
+            await bot.download(doc.file_id, destination=downloaded)
+            file_bytes = downloaded.getvalue()
             result = await c.scanner.scan_file(sender_id, file_bytes, file_name)
 
             if result.verdict.is_bad:
@@ -211,37 +218,44 @@ def register(dp: Dispatcher, c: Container) -> None:
         sender_id = message.from_user.id if message.from_user else 0
         mention = formatters.mention(sender_id, sender)
 
-        # 1. AI va NLP orqali matnli qonunbuzarliklarni tekshirish (Ekstremizm, Narkotik, Bulling)
-        nlp_res = await c.nlp.analyze_text(text)
-        if nlp_res["is_violation"]:
-            # Qonunbuzarlik topildi — xabarni o'chirish va jazo qo'llash
-            await _safe_delete(message)
-            category = nlp_res["category"] or "other"
-            reason = nlp_res["reason"]
-            
-            # Guruhga tahlil kartasini yuborish
-            await bot.send_message(
-                chat_id,
-                formatters.nlp_violation_warning(category, reason, mention),
-                parse_mode="HTML"
-            )
-            
-            # Forensika arxivida saqlash
-            await _save_forensics_case(message, category, reason, c)
+        # Fetch group settings
+        filters = c.user_settings.get_group_settings(chat_id)
 
-            # Moderatsiya: warn yoki ban
-            reason_map = {
-                "extremism": "Diniy extremism va radikalizm targ'iboti",
-                "drugs": "Giyohvand moddalar yoki preparatlar yashirin savdosi/targ'iboti",
-                "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi"
-            }
-            moderator_reason = reason_map.get(category, f"Siyosat buzilishi: {reason}")
-            await c.moderator.warn_or_ban(chat_id, sender_id, sender, moderator_reason)
-            return
+        # 1. AI va NLP orqali matnli qonunbuzarliklarni tekshirish (Ekstremizm, Narkotik, Bulling)
+        if filters.get("filter_nlp", True):
+            nlp_res = await c.nlp.analyze_text(text)
+            if nlp_res["is_violation"]:
+                # Qonunbuzarlik topildi — xabarni o'chirish va jazo qo'llash
+                await _safe_delete(message)
+                category = nlp_res["category"] or "other"
+                reason = nlp_res["reason"]
+                
+                # Guruhga tahlil kartasini yuborish
+                await bot.send_message(
+                    chat_id,
+                    formatters.nlp_violation_warning(category, reason, mention),
+                    parse_mode="HTML"
+                )
+                
+                # Forensika arxivida saqlash
+                await _save_forensics_case(message, category, reason, c)
+
+                # Moderatsiya: warn yoki ban
+                reason_map = {
+                    "extremism": "Diniy extremism va radikalizm targ'iboti",
+                    "drugs": "Giyohvand moddalar yoki preparatlar yashirin savdosi/targ'iboti",
+                    "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi"
+                }
+                moderator_reason = reason_map.get(category, f"Siyosat buzilishi: {reason}")
+                await c.moderator.warn_or_ban(chat_id, sender_id, sender, moderator_reason)
+                return
 
         # 2. Xabar tarkibidagi linklarni tekshirish
         links = extract_links(message)
         if not links:
+            return
+
+        if not filters.get("filter_links", True):
             return
 
         wait = await message.reply(
@@ -284,14 +298,68 @@ def register(dp: Dispatcher, c: Container) -> None:
         if not any_bad:
             await _safe_delete(wait)
 
+    async def cmd_settings(message: Message):
+        if not await is_chat_admin(message):
+            await message.answer(GROUP_ADMIN_ONLY)
+            return
+        chat_id = message.chat.id
+        chat_title = message.chat.title or "Guruh"
+        filters = c.user_settings.get_group_settings(chat_id)
+        await message.answer(
+            formatters.group_settings_text(chat_title, filters),
+            parse_mode="HTML",
+            reply_markup=keyboards.group_settings_kb(chat_id, filters)
+        )
+
+    async def handle_toggle_gset(call: CallbackQuery):
+        chat_id = call.message.chat.id
+        try:
+            member = await bot.get_chat_member(chat_id, call.from_user.id)
+            if member.status not in ("administrator", "creator") and call.from_user.id != settings.admin_id:
+                await call.answer("Bu tugmani faqat guruh adminlari bosa oladi!", show_alert=True)
+                return
+        except Exception:
+            pass
+
+        raw = call.data.replace("toggle_gset_", "")
+        parts = raw.split("_filter_")
+        if len(parts) < 2:
+            await call.answer()
+            return
+        target_chat_id = int(parts[0])
+        filter_name = f"filter_{parts[1]}"
+
+        filters = c.user_settings.get_group_settings(target_chat_id)
+        current_val = filters.get(filter_name, True)
+        new_val = not current_val
+        c.user_settings.set_group_filter(target_chat_id, filter_name, new_val)
+
+        updated_filters = c.user_settings.get_group_settings(target_chat_id)
+        chat_title = call.message.chat.title or "Guruh"
+        
+        await call.message.edit_text(
+            formatters.group_settings_text(chat_title, updated_filters),
+            parse_mode="HTML",
+            reply_markup=keyboards.group_settings_kb(target_chat_id, updated_filters)
+        )
+        await call.answer("Sozlama o'zgartirildi!")
+
+    async def handle_close_gset(call: CallbackQuery):
+        await call.message.delete()
+        await call.answer()
+
 
     dp.my_chat_member.register(bot_added_to_group)
     dp.message.register(cmd_enable, Command("enable"), group_filter)
     dp.message.register(cmd_disable, Command("disable"), group_filter)
     dp.message.register(cmd_status, Command("status"), group_filter)
+    dp.message.register(cmd_settings, Command("settings"), group_filter)
     dp.message.register(cmd_warn, Command("warn"), group_filter)
     dp.message.register(cmd_warns, Command("warns"), group_filter)
     dp.message.register(cmd_unwarn, Command("unwarn"), group_filter)
 
     dp.message.register(handle_group_document, F.document, group_filter)
     dp.message.register(handle_group_message, group_filter)
+
+    dp.callback_query.register(handle_toggle_gset, F.data.startswith("toggle_gset_"))
+    dp.callback_query.register(handle_close_gset, F.data == "close_group_settings")

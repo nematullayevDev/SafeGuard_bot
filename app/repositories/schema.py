@@ -3,6 +3,13 @@ from app.repositories.base import get_conn
 from app.repositories.seed_data import seed_banned_sites, seed_forensics
 
 
+def _add_column_if_not_exists(c, table: str, column: str, definition: str) -> None:
+    c.execute(f"PRAGMA table_info({table})")
+    columns = [row[1] for row in c.fetchall()]
+    if column not in columns:
+        c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_schema() -> None:
     with get_conn() as conn:
         c = conn.cursor()
@@ -76,6 +83,11 @@ def init_schema() -> None:
                 photo_path TEXT
             )
         """)
+        c.execute("CREATE INDEX IF NOT EXISTS idx_forensics_user_id ON forensics(user_id)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_forensics_violation_type ON forensics(violation_type)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_warnings_chat_user ON warnings(chat_id, user_id)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_scan_history_user_id ON scan_history(user_id)")
+
 
         # banned_sites — migrate legacy table missing UNIQUE constraint
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='banned_sites'")
@@ -112,4 +124,10 @@ def init_schema() -> None:
             """)
 
         seed_banned_sites(c)
-        seed_forensics(c)
+        # seed_forensics(c)
+
+        _add_column_if_not_exists(c, "user_settings", "filter_links", "INTEGER DEFAULT 1")
+        _add_column_if_not_exists(c, "user_settings", "filter_files", "INTEGER DEFAULT 1")
+        _add_column_if_not_exists(c, "user_settings", "filter_nlp", "INTEGER DEFAULT 1")
+        _add_column_if_not_exists(c, "users", "quiz_passed", "INTEGER DEFAULT 0")
+        _add_column_if_not_exists(c, "users", "quiz_score", "INTEGER DEFAULT 0")

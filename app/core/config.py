@@ -46,12 +46,20 @@ def _load() -> Settings:
         raise RuntimeError("VIRUSTOTAL_API_KEY .env faylida belgilanmagan!")
 
     base = Path(__file__).resolve().parents[2]
+    
+    # Auto-detect Render persistent disk mount at /var/data
+    render_disk = "/var/data"
+    if os.path.exists(render_disk):
+        db_path = os.path.join(render_disk, "users.db")
+    else:
+        db_path = str(base / "users.db")
+
     return Settings(
         bot_token=bot_token,
         vt_api_key=vt_api_key,
         admin_id=int(os.getenv("ADMIN_ID", "0")),
         bot_username=os.getenv("BOT_USERNAME", "safeguard_uz_bot"),
-        db_path=str(base / "users.db"),
+        db_path=db_path,
         base_dir=base,
         gemini_api_key=os.getenv("GEMINI_API_KEY"),
     )

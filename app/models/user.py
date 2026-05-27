@@ -8,6 +8,8 @@ class User:
     username: str
     phone: str
     registered_at: str
+    quiz_passed: int = 0
+    quiz_score: int = 0
 
     @property
     def at_username(self) -> str:

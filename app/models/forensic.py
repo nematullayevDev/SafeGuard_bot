@@ -15,6 +15,7 @@ class ForensicCase:
     reason: str
     detected_at: str
     photo_path: str | None = None
+    chat_username: str | None = None
 
     @property
     def display_violation(self) -> str:

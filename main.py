@@ -57,7 +57,9 @@ async def set_bot_commands() -> None:
     commands = [
         BotCommand(command="start", description="🚀 Botni ishga tushirish"),
         BotCommand(command="menu", description="📱 Bosh menyuni ochish"),
+        BotCommand(command="quiz", description="🛡️ Kiber-Savodxonlik Viktorinasi"),
     ]
+
     try:
         await bot.set_my_commands(commands)
         logger.info("✅ Bot buyruqlari muvaffaqiyatli o'rnatildi!")
@@ -70,9 +72,14 @@ async def main() -> None:
     init_schema()
     container = build_container()
     register_all(dp, container)
+
+    # Fonda ishlovchi rejalashtirgichni ishga tushirish (daily backup + tips)
+    from app.services.scheduler import start_scheduler
+    start_scheduler(bot, container)
     
     # Bot buyruqlari menyusini ro'yxatdan o'tkazamiz
     await set_bot_commands()
+
 
     webhook_url = os.getenv("WEBHOOK_URL")
     if webhook_url:

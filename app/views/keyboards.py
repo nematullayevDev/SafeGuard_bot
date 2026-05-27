@@ -38,7 +38,10 @@ def main_menu(is_admin_user: bool = False) -> InlineKeyboardMarkup:
         ],
         [InlineKeyboardButton(text="🌐 Taqiqlangan Saytlar", callback_data="banned_sites_main")],
         [
+            InlineKeyboardButton(text="🛡️ Kiber-Viktorina", callback_data="quiz_main"),
             InlineKeyboardButton(text="📂 Buyruqlar", callback_data="commands"),
+        ],
+        [
             InlineKeyboardButton(text="ℹ️ Yordam", callback_data="help"),
         ],
     ]
@@ -58,10 +61,14 @@ def admin_panel_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📂 Kiber-Tergov", callback_data="admin_forensics_main"),
         ],
         [InlineKeyboardButton(text="🤖 Bot qaysi guruhlarda", callback_data="admin_groups")],
-        [InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast")],
+        [
+            InlineKeyboardButton(text="📢 Broadcast", callback_data="admin_broadcast"),
+            InlineKeyboardButton(text="💾 Baza Zaxirasi", callback_data="admin_backup"),
+        ],
         [InlineKeyboardButton(text="🚫 Taqiqlangan Saytlar", callback_data="admin_banned_sites")],
         [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
     ])
+
 
 
 def forensics_main_menu() -> InlineKeyboardMarkup:
@@ -214,34 +221,32 @@ def go_start_kb() -> InlineKeyboardMarkup:
     ])
 
 
-def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category: str = "all") -> InlineKeyboardMarkup:
+def forensics_list_kb(suspects, page: int, has_prev: bool, has_next: bool, category: str = "all") -> InlineKeyboardMarkup:
     rows = []
     
     # 1. Suspects' names as buttons (one button per row)
-    for c in cases:
-        name = c.full_name.strip() if c.full_name and c.full_name.strip() not in (".", "") else f"Gumondor #{c.user_id}"
-        short_name = name[:28] + "..." if len(name) > 28 else name
+    for s in suspects:
+        name = s["full_name"].strip() if s.get("full_name") and s["full_name"].strip() not in (".", "") else f"Gumondor #{s['user_id']}"
+        count = s.get("case_count", 1)
+        if count > 1:
+            name_text = f"{name} 🔄 ({count} ta)"
+        else:
+            name_text = f"{name} ({count} ta)"
+            
+        short_name = name_text[:28] + "..." if len(name_text) > 28 else name_text
         rows.append([InlineKeyboardButton(
             text=f"👤 {short_name}",
-            callback_data=f"forensic_case_{c.id}_p{page}_c{category}"
+            callback_data=f"forensic_suspect_{s['user_id']}_p{page}_c{category}"
         )])
         
-    # Divider line if there are cases
-    if cases:
-        rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
-        
-    # 2. Navigation Buttons
-    nav = []
-    if has_prev:
-        nav.append(InlineKeyboardButton(text="◀️ Oldingi", callback_data=f"admin_forensics_list_p{page - 1}_c{category}"))
-    if has_next:
-        nav.append(InlineKeyboardButton(text="Keyingi ▶️", callback_data=f"admin_forensics_list_p{page + 1}_c{category}"))
-    if nav:
-        rows.append(nav)
-        
-    # Divider line before exports if there are cases
-    if cases:
-        rows.append([InlineKeyboardButton(text="━━━━━━━━━━━━━━━━━━━━━", callback_data="dummy")])
+    # 2. Navigation Buttons (Always visible!)
+    prev_cb = f"admin_forensics_list_p{page - 1}_c{category}" if has_prev else "dummy"
+    next_cb = f"admin_forensics_list_p{page + 1}_c{category}" if has_next else "dummy"
+    
+    rows.append([
+        InlineKeyboardButton(text="◀️ Oldingi", callback_data=prev_cb),
+        InlineKeyboardButton(text="Keyingi ▶️", callback_data=next_cb)
+    ])
         
     # 3. Bulk Export Buttons
     rows.append([
@@ -255,16 +260,68 @@ def forensics_list_kb(cases, page: int, has_prev: bool, has_next: bool, category
 
 
 
-def forensic_detail_kb(case_id: int, page: int, category: str = "all") -> InlineKeyboardMarkup:
+
+def forensic_detail_kb(user_id: int, page: int, category: str = "all") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="📄 PDF Tergov Bayonnomasi", callback_data=f"forensic_pdf_{case_id}"),
+            InlineKeyboardButton(text="📄 PDF Tergov Bayonnomasi", callback_data=f"forensic_pdf_{user_id}"),
         ],
         [
-            InlineKeyboardButton(text="📝 Word Tergov Bayonnomasi", callback_data=f"forensic_docx_{case_id}"),
+            InlineKeyboardButton(text="📝 Word Tergov Bayonnomasi", callback_data=f"forensic_docx_{user_id}"),
         ],
         [
-            InlineKeyboardButton(text="🗑 Dalilni o'chirish", callback_data=f"forensic_del_{case_id}_p{page}_c{category}"),
+            InlineKeyboardButton(text="🗑 Gumondorni o'chirish", callback_data=f"forensic_del_{user_id}_p{page}_c{category}"),
         ],
         [InlineKeyboardButton(text="🔙 Ro'yxatga orqaga", callback_data=f"admin_forensics_list_p{page}_c{category}")],
     ])
+
+
+def group_settings_kb(chat_id: int, filters: dict) -> InlineKeyboardMarkup:
+    l_status = "✅ Faol" if filters.get("filter_links", True) else "❌ O'chirilgan"
+    f_status = "✅ Faol" if filters.get("filter_files", True) else "❌ O'chirilgan"
+    n_status = "✅ Faol" if filters.get("filter_nlp", True) else "❌ O'chirilgan"
+
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🔗 Havolalar (Links)", callback_data="dummy"),
+            InlineKeyboardButton(text=l_status, callback_data=f"toggle_gset_{chat_id}_filter_links")
+        ],
+        [
+            InlineKeyboardButton(text="📦 Fayllar (Files/Viruses)", callback_data="dummy"),
+            InlineKeyboardButton(text=f_status, callback_data=f"toggle_gset_{chat_id}_filter_files")
+        ],
+        [
+            InlineKeyboardButton(text="🧠 Matn Tahlili (NLP)", callback_data="dummy"),
+            InlineKeyboardButton(text=n_status, callback_data=f"toggle_gset_{chat_id}_filter_nlp")
+        ],
+        [InlineKeyboardButton(text="❌ Yopish", callback_data="close_group_settings")]
+    ])
+
+
+def admin_stats_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📥 PDF Hisobot Yuklash", callback_data="admin_stats_pdf")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")]
+    ])
+
+
+def quiz_main_menu(quiz_passed: bool) -> InlineKeyboardMarkup:
+    status_btn = "🎉 Testdan O'tgansiz (Qayta topshirish)" if quiz_passed else "📝 Testni Boshlash"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=status_btn, callback_data="quiz_start_session")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")]
+    ])
+
+
+def quiz_question_kb(q_idx: int, options: list) -> InlineKeyboardMarkup:
+    rows = []
+    for option_text, option_val in options:
+        rows.append([InlineKeyboardButton(text=option_text, callback_data=f"quiz_ans_{q_idx}_{option_val}")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def quiz_result_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🔙 Bosh Menyuga Qaytish", callback_data="main_menu")]
+    ])
+

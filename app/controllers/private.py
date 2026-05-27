@@ -47,9 +47,11 @@ def register(dp: Dispatcher, c: Container) -> None:
             f"📦 {round(size_mb, 2)} MB | ⏱ 15-30 sekund kuting..."
         )
         try:
-            info = await bot.get_file(doc.file_id)
-            downloaded = await bot.download_file(info.file_path)
-            result = await c.scanner.scan_file(uid, downloaded.read(), file_name)
+            import io
+            downloaded = io.BytesIO()
+            await bot.download(doc.file_id, destination=downloaded)
+            file_bytes = downloaded.getvalue()
+            result = await c.scanner.scan_file(uid, file_bytes, file_name)
             response = formatters.scan_result(result)
         except Exception as e:
             logger.error("Shaxsiy fayl xato: %s", e)

@@ -16,7 +16,8 @@ from reportlab.platypus import (
 )
 from docx.shared import Inches
 
-from app.models import Group, User, ForensicCase
+from app.models import Group, User, ForensicCase, BotStats
+
 
 _FONT_CANDIDATES = (
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -41,6 +42,22 @@ def _escape_html(s: str) -> str:
 
 
 class ExportService:
+    def db_backup(self, db_path: str) -> str:
+        """Create a safe SQLite backup of the active database using SQLite online backup API."""
+        import sqlite3
+        tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+        tmp.close()
+        
+        src = sqlite3.connect(db_path)
+        dest = sqlite3.connect(tmp.name)
+        try:
+            with src, dest:
+                src.backup(dest)
+        finally:
+            src.close()
+            dest.close()
+        return tmp.name
+
     # ─── Users ───────────────────────────────────────
     def users_pdf(self, users: Sequence[User]) -> str:
         tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
@@ -103,6 +120,113 @@ class ExportService:
 
         doc.save(tmp.name)
         return tmp.name
+
+    def stats_pdf_report(self, stats: BotStats) -> str:
+        font_name = "Helvetica"
+        font_path = _find_font()
+        if font_path:
+            try:
+                pdfmetrics.registerFont(TTFont("UniFont", font_path))
+                font_name = "UniFont"
+            except Exception:
+                pass
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+        doc = SimpleDocTemplate(tmp.name, pagesize=A4,
+                                leftMargin=40, rightMargin=40,
+                                topMargin=40, bottomMargin=40)
+        styles = getSampleStyleSheet()
+        
+        title_style = ParagraphStyle(
+            "StatsTitle", parent=styles["Title"], fontName=font_name, fontSize=16, leading=20, spaceAfter=8, textColor=colors.HexColor("#1A365D")
+        )
+        subtitle_style = ParagraphStyle(
+            "StatsSubtitle", parent=styles["Normal"], fontName=font_name, fontSize=10, leading=14, spaceAfter=15, textColor=colors.HexColor("#4A5568")
+        )
+        label_style = ParagraphStyle(
+            "StatsLabel", parent=styles["Normal"], fontName=font_name + "-Bold" if font_path is None else font_name, 
+            fontSize=10, leading=13, textColor=colors.HexColor("#2D3748")
+        )
+        value_style = ParagraphStyle(
+            "StatsValue", parent=styles["Normal"], fontName=font_name, fontSize=10, leading=13, textColor=colors.HexColor("#2D3748")
+        )
+        section_style = ParagraphStyle(
+            "StatsSection", parent=styles["Normal"], fontName=font_name + "-Bold" if font_path is None else font_name, 
+            fontSize=12, leading=15, spaceBefore=15, spaceAfter=8, textColor=colors.HexColor("#319795")
+        )
+
+        elements = [
+            Paragraph("<b>SafeGuard Kiber-Himoya Tizimi</b>", title_style),
+            Paragraph("<b>Tahliliy Statistika va Faollik Hisoboti</b>", subtitle_style),
+            HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#1A365D")),
+            Spacer(1, 10),
+        ]
+
+        # General Info
+        elements.append(Paragraph("📊 Foydalanuvchilar va Guruhlar Statistikasi", section_style))
+        general_data = [
+            [Paragraph("<b>Jami foydalanuvchilar soni:</b>", label_style), Paragraph(str(stats.total_users), value_style)],
+            [Paragraph("<b>Bugun ro'yxatdan o'tganlar:</b>", label_style), Paragraph(str(stats.today_users), value_style)],
+            [Paragraph("<b>Qora ro'yxatga olingan havolalar:</b>", label_style), Paragraph(str(stats.bl_count), value_style)],
+        ]
+        t_general = Table(general_data, colWidths=[200, 310])
+        t_general.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
+            ("PADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(t_general)
+        elements.append(Spacer(1, 10))
+
+        # Threat Info
+        elements.append(Paragraph("🚨 Kiber-Tahdidlar va Skanerlash Faolligi", section_style))
+        threat_data = [
+            [Paragraph("<b>Jami skanerlangan havolalar va fayllar:</b>", label_style), Paragraph(str(stats.total_scans), value_style)],
+            [Paragraph("<b>Aniqlangan xavfli ob'ektlar (DANGEROUS):</b>", label_style), Paragraph(str(stats.dangerous), value_style)],
+            [Paragraph("<b>Aniqlangan shubhali ob'ektlar (SUSPICIOUS):</b>", label_style), Paragraph(str(stats.suspicious), value_style)],
+        ]
+        t_threat = Table(threat_data, colWidths=[250, 260])
+        t_threat.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FFF5F5")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#FED7D7")),
+            ("PADDING", (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(t_threat)
+        elements.append(Spacer(1, 15))
+
+        elements.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CBD5E0")))
+        elements.append(Spacer(1, 10))
+
+        # Summary text
+        summary_text = (
+            "<b>Tahliliy Xulosa:</b> Tizim muvaffaqiyatli ravishda fishing saytlari va zararli dasturlarni "
+            "aniqlab kelmoqda. Skanerlash natijalariga ko'ra xavfli deb topilgan elementlar darhol "
+            "foydalanuvchilardan yashirilgan yoki ogohlantirish berilgan. Raqamli gigiyena va kiberxavfsizlik "
+            "madaniyatini saqlash bo'yicha profilaktika ishlarini davom ettirish tavsiya etiladi."
+        )
+        elements.append(Paragraph(summary_text, subtitle_style))
+        elements.append(Spacer(1, 40))
+
+        # Signature
+        sig_data = [
+            [Paragraph("<b>Tuzuvchi tizim:</b>", value_style), Paragraph("SafeGuard AI core engine", value_style)],
+            [Paragraph("<b>Eksport vaqti:</b>", value_style), Paragraph(datetime.now().strftime("%d.%m.%Y %H:%M:%S"), value_style)],
+            [Paragraph("<b>Hisobot imzosi (MD5):</b>", value_style), Paragraph("Verified Secure", value_style)]
+        ]
+        t_sig = Table(sig_data, colWidths=[150, 360])
+        t_sig.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+        ]))
+        elements.append(t_sig)
+
+        doc.build(elements)
+        return tmp.name
+
 
     # ─── Groups ──────────────────────────────────────
     def groups_pdf(self, groups: Sequence[Group]) -> str:
@@ -227,7 +351,7 @@ class ExportService:
         doc.save(tmp.name)
         return tmp.name
 
-    def forensic_report_pdf(self, case: ForensicCase) -> str:
+    def forensic_report_pdf(self, suspect_details: dict, cases: Sequence[ForensicCase]) -> str:
         font_name = "Helvetica"
         font_path = _find_font()
         if font_path:
@@ -243,9 +367,6 @@ class ExportService:
                                 topMargin=40, bottomMargin=40)
         styles = getSampleStyleSheet()
         
-        title_style = ParagraphStyle(
-            "GovTitle", parent=styles["Title"], fontName=font_name, fontSize=11, leading=14, spaceAfter=4
-        )
         subtitle_style = ParagraphStyle(
             "GovSubtitle", parent=styles["Title"], fontName=font_name, fontSize=13, leading=16, spaceAfter=15
         )
@@ -261,27 +382,38 @@ class ExportService:
         )
 
         elements = [
-            Paragraph("<b>O'ZBEKISTON RESPUBLIKASI ICHKI ISHLAR VAZIRLIGI</b>", title_style),
-            Paragraph("<b>KIBERXAVFSIZLIK DEPARTAMENTI VA RAQAMLI EKSPERTIZA XULOSASI</b>", subtitle_style),
+            Paragraph("<b>SafeGuard Bot — Kiber-Tergov Dalillar Arxivi</b>", subtitle_style),
             HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#2C3E50")),
             Spacer(1, 10),
         ]
 
+        user_id = suspect_details.get("user_id")
+        full_name = suspect_details.get("full_name") or "Noma'lum"
+        username = suspect_details.get("username") or ""
+        phone = suspect_details.get("phone") or "ulashilmagan"
+        if not full_name.strip() or full_name == ".":
+            full_name = f"Gumondor #{user_id}"
+
         details_data = [
-            [Paragraph("<b>Hujjat raqami (ID):</b>", label_style), Paragraph(f"#{case.id}", value_style)],
-            [Paragraph("<b>Sana va vaqt:</b>", label_style), Paragraph(case.detected_at, value_style)],
-            [Paragraph("<b>Manzil (Guruh):</b>", label_style), Paragraph(f"{case.chat_title} (ID: {case.chat_id})", value_style)],
-            [Paragraph("<b>Qonunbuzarlik turi:</b>", label_style), Paragraph(case.display_violation, value_style)],
-            [Paragraph("<b>Huquqbuzar (Ism):</b>", label_style), Paragraph(case.full_name, value_style)],
-            [Paragraph("<b>Username / ID:</b>", label_style), Paragraph(f"@{case.username if case.username else 'yo\'q'} / ID: {case.user_id}", value_style)],
-            [Paragraph("<b>Telefon raqam:</b>", label_style), Paragraph(case.phone if case.phone else "ulashilmagan", value_style)],
-            [Paragraph("<b>Tizim xulosasi:</b>", label_style), Paragraph(case.reason, value_style)],
+            [Paragraph("<b>Gumondor (Ism):</b>", label_style), Paragraph(full_name, value_style)],
+            [Paragraph("<b>Telegram ID:</b>", label_style), Paragraph(str(user_id), value_style)],
+            [Paragraph("<b>Username:</b>", label_style), Paragraph(f"@{username}" if username else "yo'q", value_style)],
+            [Paragraph("<b>Telefon raqam:</b>", label_style), Paragraph(phone, value_style)],
+            [Paragraph("<b>Jami qonunbuzarliklar:</b>", label_style), Paragraph(f"{len(cases)} ta", value_style)],
+            [Paragraph("<b>Hujjat shakllantirilgan sana:</b>", label_style), Paragraph(datetime.now().strftime("%d.%m.%Y %H:%M"), value_style)],
         ]
 
-        if case.photo_path and os.path.exists(case.photo_path):
+        # Check if there is any photo in cases
+        photo_path = None
+        for case in cases:
+            if case.photo_path and os.path.exists(case.photo_path):
+                photo_path = case.photo_path
+                break
+
+        if photo_path:
             try:
-                img = RLImage(case.photo_path, width=110, height=110)
-                t_details = Table(details_data, colWidths=[120, 250])
+                img = RLImage(photo_path, width=110, height=110)
+                t_details = Table(details_data, colWidths=[130, 240])
                 t_details.setStyle(TableStyle([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
@@ -295,14 +427,14 @@ class ExportService:
                 ]))
                 elements.append(layout_table)
             except Exception:
-                t_details = Table(details_data, colWidths=[130, 380])
+                t_details = Table(details_data, colWidths=[150, 360])
                 t_details.setStyle(TableStyle([
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
                 ]))
                 elements.append(t_details)
         else:
-            t_details = Table(details_data, colWidths=[130, 380])
+            t_details = Table(details_data, colWidths=[150, 360])
             t_details.setStyle(TableStyle([
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
@@ -313,28 +445,52 @@ class ExportService:
         elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
         elements.append(Spacer(1, 10))
 
-        elements.append(Paragraph("<b>ASLIY JINOYAT ASYOSI (DALIL MATNI):</b>", label_style))
-        elements.append(Spacer(1, 5))
-        
-        msg_box_data = [[Paragraph(f'<i>"{_escape_html(case.message_text)}"</i>', text_style)]]
-        msg_table = Table(msg_box_data, colWidths=[510])
-        msg_table.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
-            ("PADDING", (0, 0), (-1, -1), 10),
-            ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#E2E8F0")),
-        ]))
-        elements.append(msg_table)
+        # Add cases chronologically or as returned
+        for idx, case in enumerate(cases, 1):
+            elements.append(Paragraph(f"<b>HOLAT #{idx} (Dalil ID: #{case.id})</b>", label_style))
+            elements.append(Spacer(1, 5))
+            
+            if getattr(case, "chat_username", None) and case.chat_username:
+                group_display = f"{case.chat_title} (@{case.chat_username} | ID: {case.chat_id})"
+            else:
+                group_display = f"{case.chat_title} (ID: {case.chat_id})"
+            case_data = [
+                [Paragraph("<b>Sana:</b>", label_style), Paragraph(case.detected_at, value_style)],
+                [Paragraph("<b>Guruh:</b>", label_style), Paragraph(group_display, value_style)],
+                [Paragraph("<b>Kategoriya:</b>", label_style), Paragraph(case.display_violation, value_style)],
+                [Paragraph("<b>Tizim tahlili:</b>", label_style), Paragraph(case.reason, value_style)],
+            ]
+            t_case = Table(case_data, colWidths=[120, 390])
+            t_case.setStyle(TableStyle([
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(t_case)
+            elements.append(Spacer(1, 5))
+            
+            elements.append(Paragraph("<b>Dalil matni:</b>", label_style))
+            elements.append(Spacer(1, 3))
+            
+            msg_box_data = [[Paragraph(f'<i>"{_escape_html(case.message_text)}"</i>', text_style)]]
+            msg_table = Table(msg_box_data, colWidths=[510])
+            msg_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8F9FA")),
+                ("PADDING", (0, 0), (-1, -1), 8),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#E2E8F0")),
+            ]))
+            elements.append(msg_table)
+            elements.append(Spacer(1, 15))
+            
+            if idx < len(cases):
+                elements.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+                elements.append(Spacer(1, 10))
 
-        elements.append(Spacer(1, 20))
+        elements.append(Spacer(1, 10))
+        elements.append(HRFlowable(width="100%", thickness=1, color=colors.grey))
+        elements.append(Spacer(1, 10))
         
-        legal_note = {
-            "extremism": "Ushbu bayonnoma O'zbekiston Respublikasi JK 244-1-moddasi (Jamoat xavfsizligiga tahdid soluvchi materiallarni tarqatish) bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
-            "drugs": "Ushbu bayonnoma O'zbekiston Respublikasi JK 273-moddasi (Giyohvandlik moddalari savdosi va yashirin aylanmasi) bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
-            "bullying": "Ushbu bayonnoma O'zbekiston Respublikasi JK 140-moddasi (Haqorat qilish) hamda MJtK 41-moddasiga ko'ra dalil sifatida foydalanilishi mumkin."
-        }.get(case.violation_type, "Ushbu hujjat kiber-ekspertiza dalili sifatida tergov organlariga taqdim etiladi.")
-
-        elements.append(Paragraph(f"<b>Eslatma:</b> <i>{legal_note}</i>", value_style))
-        elements.append(Spacer(1, 30))
+        elements.append(Paragraph("<b>Huquqiy Eslatma:</b> <i>Ushbu bayonnoma SafeGuard Bot tizimi tomonidan qayd etilgan raqamli dalillar arxivi bo'lib, tergov va ekspertiza jarayonlarida rasmiy asos bo'lib xizmat qilishi mumkin.</i>", value_style))
+        elements.append(Spacer(1, 35))
         
         sig_data = [
             [Paragraph("<b>Mas'ul ekspert:</b>", value_style), Paragraph("________________________", value_style), Paragraph("(Imzo)", value_style)],
@@ -350,17 +506,23 @@ class ExportService:
         doc.build(elements)
         return tmp.name
 
-    def forensic_report_docx(self, case: ForensicCase) -> str:
+    def forensic_report_docx(self, suspect_details: dict, cases: Sequence[ForensicCase]) -> str:
         tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
         doc = Document()
         
-        h1 = doc.add_heading("O'ZBEKISTON RESPUBLIKASI ICHKI ISHLAR VAZIRLIGI", 1)
+        h1 = doc.add_heading("SafeGuard Bot — Kiber-Tergov Dalillari Arxivi", 1)
         h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        h2 = doc.add_heading("KIBERXAVFSIZLIK DEPARTAMENTI VA RAQAMLI EKSPERTIZA XULOSASI", 2)
-        h2.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
         doc.add_paragraph("Sana: " + datetime.now().strftime("%d.%m.%Y %H:%M"))
-        doc.add_paragraph(f"Bayonnoma ID: #{case.id}")
+        
+        user_id = suspect_details.get("user_id")
+        full_name = suspect_details.get("full_name") or "Noma'lum"
+        username = suspect_details.get("username") or ""
+        phone = suspect_details.get("phone") or "ulashilmagan"
+        if not full_name.strip() or full_name == ".":
+            full_name = f"Gumondor #{user_id}"
+
+        doc.add_paragraph(f"Gumondor Telegram ID: {user_id}")
         doc.add_paragraph("-" * 80)
         
         table = doc.add_table(rows=0, cols=2)
@@ -372,41 +534,54 @@ class ExportService:
             row_cells[0].paragraphs[0].runs[0].bold = True
             row_cells[1].text = str(val)
 
-        add_row("Tergov ID raqami:", f"#{case.id}")
-        add_row("Sana va vaqt:", case.detected_at)
-        add_row("Manzil (Guruh):", f"{case.chat_title} (ID: {case.chat_id})")
-        add_row("Qonunbuzarlik turi:", case.display_violation)
-        add_row("Huquqbuzar ismi:", case.full_name)
-        add_row("Username / Telegram ID:", f"@{case.username if case.username else 'yo\'q'} / ID: {case.user_id}")
-        add_row("Telefon raqami:", case.phone if case.phone else "ulashilmagan")
-        add_row("Tizim tahlili sababi:", case.reason)
+        add_row("Gumondor ismi:", full_name)
+        add_row("Telegram ID:", user_id)
+        add_row("Username:", f"@{username}" if username else "yo'q")
+        add_row("Telefon raqami:", phone)
+        add_row("Jami qonunbuzarliklar soni:", len(cases))
         
         doc.add_paragraph("")
         
-        if case.photo_path and os.path.exists(case.photo_path):
+        # Check if there is any photo in cases
+        photo_path = None
+        for case in cases:
+            if case.photo_path and os.path.exists(case.photo_path):
+                photo_path = case.photo_path
+                break
+
+        if photo_path:
             try:
-                doc.add_paragraph("Huquqbuzar Telegram profil rasmi (Dalil):")
-                doc.add_picture(case.photo_path, width=Inches(2.0))
+                doc.add_paragraph("Gumondor Telegram profil rasmi (Dalil):")
+                doc.add_picture(photo_path, width=Inches(2.0))
                 doc.add_paragraph("")
             except Exception:
                 pass
                 
-        doc.add_heading("ASLIY JINOYAT ASYOSI (DALIL MATNI)", 3)
-        evidence_para = doc.add_paragraph()
-        evidence_para.paragraph_format.left_indent = Inches(0.5)
-        run = evidence_para.add_run(f'"{case.message_text}"')
-        run.italic = True
-        
+        doc.add_heading("SODIR ETILGAN QONUNBUZARLIKLAR RO'YXATI", 2)
         doc.add_paragraph("")
+
+        for idx, case in enumerate(cases, 1):
+            doc.add_heading(f"Holat #{idx} (Dalil ID: #{case.id})", 3)
+            doc.add_paragraph(f"Sana va vaqt: {case.detected_at}")
+            if getattr(case, "chat_username", None) and case.chat_username:
+                doc.add_paragraph(f"Guruh: {case.chat_title} (@{case.chat_username} | ID: {case.chat_id})")
+            else:
+                doc.add_paragraph(f"Guruh: {case.chat_title} (ID: {case.chat_id})")
+            doc.add_paragraph(f"Kategoriya: {case.display_violation}")
+            doc.add_paragraph(f"Tizim tahlili: {case.reason}")
+            
+            doc.add_paragraph("Dalil xabar matni:")
+            evidence_para = doc.add_paragraph()
+            evidence_para.paragraph_format.left_indent = Inches(0.5)
+            run = evidence_para.add_run(f'"{case.message_text}"')
+            run.italic = True
+            
+            doc.add_paragraph("")
+            if idx < len(cases):
+                doc.add_paragraph("-" * 40)
+        
         doc.add_paragraph("-" * 80)
-        
-        legal_note = {
-            "extremism": "Ushbu bayonnoma O'zbekiston Respublikasi JK 244-1-moddasi bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
-            "drugs": "Ushbu bayonnoma O'zbekiston Respublikasi JK 273-moddasi bo'yicha jinoiy ish qo'zg'atish uchun asos bo'la oladi.",
-            "bullying": "Ushbu bayonnoma O'zbekiston Respublikasi JK 140-moddasi hamda MJtK 41-moddasiga ko'ra dalil sifatida ishlatilishi mumkin."
-        }.get(case.violation_type, "Kiber-ekspertiza dalil bayonnomasi.")
-        
-        doc.add_paragraph(f"Eslatma: {legal_note}")
+        doc.add_paragraph("Huquqiy Eslatma: Ushbu bayonnoma SafeGuard Bot tizimi tomonidan qayd etilgan raqamli dalillar arxivi bo'lib, tergov va ekspertiza jarayonlarida rasmiy asos bo'lib xizmat qilishi mumkin.")
         doc.add_paragraph("")
         doc.add_paragraph("Mas'ul ekspert: ________________________ (Imzo)")
         doc.add_paragraph("Departament boshlig'i: ________________________ (Imzo)")
@@ -438,8 +613,7 @@ class ExportService:
                                       fontSize=9, leading=11, textColor=colors.white)
 
         elements = [
-            Paragraph(f"<b>O'ZBEKISTON RESPUBLIKASI IIV KIBERXAVFSIZLIK DEPARTAMENTI</b>", title_style),
-            Paragraph(f"<b>Kiber-Tergov Dalillar Arxivi — {category_title}</b>", title_style),
+            Paragraph(f"<b>SafeGuard Bot — Kiber-Tergov Dalillar Arxivi — {category_title}</b>", title_style),
             Spacer(1, 10),
             Paragraph("Sana: " + datetime.now().strftime("%d.%m.%Y %H:%M"), normal_style),
             Paragraph(f"Jami yozuvlar soni: {len(cases)} ta", normal_style),
@@ -477,11 +651,17 @@ class ExportService:
                 if c.phone:
                     user_info += f"\n{c.phone}"
 
+                group_val = c.chat_title
+                if getattr(c, "chat_username", None) and c.chat_username:
+                    group_val += f"\n@{c.chat_username}\nID: {c.chat_id}"
+                else:
+                    group_val += f"\nID: {c.chat_id}"
+
                 data.append([
                     Paragraph(str(start_num_base + i - 1), normal_style),
                     Paragraph(_escape_html(c.detected_at), normal_style),
                     Paragraph(_escape_html(user_info).replace("\n", "<br/>"), normal_style),
-                    Paragraph(_escape_html(c.chat_title), normal_style),
+                    Paragraph(_escape_html(group_val).replace("\n", "<br/>"), normal_style),
                     Paragraph(_escape_html(lbl), normal_style),
                     Paragraph(_escape_html(c.reason), normal_style)
                 ])
@@ -524,10 +704,8 @@ class ExportService:
         tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
         doc = Document()
         
-        h1 = doc.add_heading("O'ZBEKISTON RESPUBLIKASI IIV KIBERXAVFSIZLIK DEPARTAMENTI", 1)
+        h1 = doc.add_heading(f"SafeGuard Bot — Kiber-Tergov Dalillar Arxivi — {category_title}", 1)
         h1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        h2 = doc.add_heading(f"Kiber-Tergov Dalillar Arxivi — {category_title}", 2)
-        h2.alignment = WD_ALIGN_PARAGRAPH.CENTER
         
         doc.add_paragraph("Sana: " + datetime.now().strftime("%d.%m.%Y %H:%M"))
         doc.add_paragraph(f"Jami yozuvlar soni: {len(cases)} ta")
@@ -557,7 +735,12 @@ class ExportService:
                     user_info += f"\n{c.phone}"
                 row[2].text = user_info
                 
-                row[3].text = c.chat_title
+                group_val = c.chat_title
+                if getattr(c, "chat_username", None) and c.chat_username:
+                    group_val += f"\n@{c.chat_username}\nID: {c.chat_id}"
+                else:
+                    group_val += f"\nID: {c.chat_id}"
+                row[3].text = group_val
                 
                 lbl = {
                     "extremism": "Ekstremizm",

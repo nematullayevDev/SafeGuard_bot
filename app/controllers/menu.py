@@ -11,7 +11,8 @@ from app.views import formatters
 from app.views.keyboards import (
     admin_banned_sites_kb, admin_panel_menu, back_button, blacklist_menu,
     group_mode_menu, groups_export_kb, main_menu, spam_filter_menu,
-    users_export_kb,
+    users_export_kb, admin_stats_kb,
+
 )
 from app.views.texts import WELCOME
 
@@ -48,9 +49,10 @@ def register(dp: Dispatcher, c: Container) -> None:
             return
         await call.message.edit_text(
             formatters.stats_text(c.stats.get()),
-            reply_markup=back_button("admin_panel"), parse_mode="HTML",
+            reply_markup=admin_stats_kb(), parse_mode="HTML",
         )
         await call.answer()
+
 
     async def admin_users(call: CallbackQuery):
         if await deny_if_not_owner(call):

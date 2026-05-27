@@ -111,11 +111,13 @@ def users_list(users: Sequence[User]) -> str:
         return "📋 Hali hech kim ro'yxatdan o'tmagan."
     lines = [f"👥 <b>Foydalanuvchilar ro'yxati</b> ({len(users)} ta):\n"]
     for i, u in enumerate(users, 1):
+        badge = " 🛡️" if getattr(u, "quiz_passed", 0) else ""
         lines.append(
-            f"{i}. {mention(u.user_id, u.display_name)} | {u.at_username} | "
+            f"{i}. {mention(u.user_id, u.display_name)}{badge} | {u.at_username} | "
             f"{u.phone} | {u.registered_at}"
         )
     return truncate("\n".join(lines), 3500)
+
 
 
 def history_list(entries: Sequence[HistoryEntry]) -> str:
@@ -292,11 +294,21 @@ def state_sync_result(res: dict) -> str:
 
 
 def forensic_case_detail(case: ForensicCase) -> str:
+    if getattr(case, "chat_username", None):
+        group_str = f'<a href="https://t.me/{case.chat_username}">{case.chat_title}</a>'
+    else:
+        clean_id = str(case.chat_id)
+        if clean_id.startswith("-100"):
+            clean_id = clean_id[4:]
+        elif clean_id.startswith("-"):
+            clean_id = clean_id[1:]
+        group_str = f'<a href="https://t.me/c/{clean_id}">{case.chat_title}</a>'
+
     return (
         f"📂 <b>KIBER-TERGOV DALILI (Case ID: #{case.id})</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"Sana va vaqt: <b>{case.detected_at}</b>\n"
-        f"Guruh: <b>{case.chat_title}</b> (ID: {case.chat_id})\n"
+        f"Guruh: {group_str} (ID: {case.chat_id})\n"
         f"Qonunbuzar: 👤 <b>{case.full_name}</b> (@{case.username if case.username else 'yo\'q'}, ID: {case.user_id})\n"
         f"Telefon raqam: <b>{case.phone if case.phone else 'ulashilmagan'}</b>\n\n"
         f"🚨 <b>Kategoriya:</b> <code>{case.display_violation}</code>\n"
@@ -319,11 +331,111 @@ def forensics_list_text(category_label: str, total: int, page_num: int, total_pa
         f"📂 <b>Kiber-Tergov Dalillari Arxivi</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"Kategoriya: <b>{category_label}</b>\n"
-        f"Jami: <b>{total}</b> ta dalil | Sahifa: <b>{page_num}/{total_pages}</b>\n"
+        f"Jami: <b>{total}</b> ta gumondor | Sahifa: <b>{page_num}/{total_pages}</b>\n"
         f"Ko'rsatilmoqda: <b>{start_num}-{end_num}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Batafsil bayonnomani ko'rish uchun quyidagi gumondorlardan birini tanlang:"
     )
+
+
+def forensic_suspect_detail(suspect_details: dict, cases: Sequence[ForensicCase]) -> str:
+    user_id = suspect_details.get("user_id")
+    full_name = suspect_details.get("full_name") or "Noma'lum"
+    username = suspect_details.get("username") or ""
+    phone = suspect_details.get("phone") or "ulashilmagan"
+    
+    # Clean blank/dot names to avoid empty/dot displays
+    if not full_name.strip() or full_name == ".":
+        full_name = f"Gumondor #{user_id}"
+        
+    username_str = f"@{username}" if username else "mavjud emas"
+    
+    header = (
+        f"👤 <b>GUMONDOR PROFILI</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Gumondor: <b>{full_name}</b>\n"
+        f"Telegram ID: <code>{user_id}</code>\n"
+        f"Username: <b>{username_str}</b>\n"
+        f"Telefon: <b>{phone}</b>\n"
+        f"Jami qonunbuzarliklar soni: <b>{len(cases)} ta</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
+    )
+    
+    body_parts = []
+    for idx, case in enumerate(cases, 1):
+        if getattr(case, "chat_username", None):
+            group_str = f'<a href="https://t.me/{case.chat_username}">{case.chat_title}</a>'
+        else:
+            clean_id = str(case.chat_id)
+            if clean_id.startswith("-100"):
+                clean_id = clean_id[4:]
+            elif clean_id.startswith("-"):
+                clean_id = clean_id[1:]
+            group_str = f'<a href="https://t.me/c/{clean_id}">{case.chat_title}</a>'
+
+        body_parts.append(
+            f"<b>{idx}-Holat (ID: #{case.id})</b>\n"
+            f"📅 Sana: <b>{case.detected_at}</b>\n"
+            f"👥 Guruh: {group_str} (ID: {case.chat_id})\n"
+            f"🚨 Kategoriya: <code>{case.display_violation}</code>\n"
+            f"🔬 Tizim tahlili: <i>{case.reason}</i>\n"
+            f"📝 Dalil matni: <i>\"{case.message_text}\"</i>"
+        )
+    
+    # We can join with a nice divider
+    body = "\n\n━━━━━━━━━━━━━━━━━━━━━\n\n".join(body_parts)
+    
+    text = header + body
+    if len(text) > 4000:
+        text = text[:3950] + "\n\n...va boshqalar (Tarix juda uzun, to'liq ma'lumot PDF/Word faylda)"
+    return text
+
+
+def group_settings_text(chat_title: str, filters: dict) -> str:
+    l_status = "🟢 <b>Faol</b> (Fishing havolalar va qora ro'yxat bloklanadi)" if filters.get("filter_links", True) else "🔴 <b>O'chirilgan</b>"
+    f_status = "🟢 <b>Faol</b> (Virusli va xavfli fayllar bloklanadi)" if filters.get("filter_files", True) else "🔴 <b>O'chirilgan</b>"
+    n_status = "🟢 <b>Faol</b> (Ekstremizm, narkotik va haqoratlar bloklanadi)" if filters.get("filter_nlp", True) else "🔴 <b>O'chirilgan</b>"
+
+    return (
+        f"⚙️ <b>«{chat_title}» Guruh Himoyasi Sozlamalari</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Ushbu sahifada botning ushbu guruhdagi himoya modullarini boshqarishingiz mumkin:\n\n"
+        f"🔗 <b>Havola Skaneri:</b> {l_status}\n"
+        f"📦 <b>Fayl Skaneri:</b> {f_status}\n"
+        f"🧠 <b>Matn Tahlili (NLP):</b> {n_status}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👇 <i>Tegishli modul holatini o'zgartirish uchun quyidagi tugmalarni bosing:</i>"
+    )
+
+
+def quiz_question_text(q_idx: int, question_data: dict) -> str:
+    q_num = q_idx + 1
+    return (
+        f"🛡️ <b>Kiber-Xavfsizlik Viktorinasi</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"❓ <b>Savol {q_num}/5:</b> {question_data['text']}\n\n"
+        f"<i>To'g'ri javobni tanlang:</i>"
+    )
+
+
+def quiz_result_text(score: int, passed: bool) -> str:
+    status_emoji = "🎉 PASS — TABRIKLAYMIZ!" if passed else "❌ FAILED — Qaytadan urinib ko'ring"
+    badge_note = (
+        "\n🛡️ Sizga <b>«🛡 Kiber-Himoyalangan»</b> nishoni berildi! "
+        "Endi profilingiz va foydalanuvchilar ro'yxatida ushbu belgi aks etadi."
+    ) if passed else "\nTestdan o'tish uchun kamida 4 ta savolga to'g'ri javob berishingiz kerak."
+
+    return (
+        f"📊 <b>Test Natijalari</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"Holat: <b>{status_emoji}</b>\n"
+        f"To'g'ri javoblar: <b>{score}/5</b>\n"
+        f"Foiz: <b>{score * 20}%</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{badge_note}"
+    )
+
+
 
 
 

@@ -13,3 +13,8 @@ class BroadcastState(StatesGroup):
 class AddSiteState(StatesGroup):
     choosing_platform = State()
     waiting_site_name = State()
+
+
+class QuizState(StatesGroup):
+    answering = State()
+
