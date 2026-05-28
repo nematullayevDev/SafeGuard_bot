@@ -132,6 +132,20 @@ def history_list(entries: Sequence[HistoryEntry]) -> str:
     return "📊 Oxirgi tekshiruvlar:\n\n" + "\n\n".join(lines)
 
 
+def _group_link(g: Group) -> str:
+    """Guruh nomiga bosish orqali guruhga o'tadigan link yasaydi."""
+    t = g.display_title
+    if g.username:
+        return f'<a href="https://t.me/{g.username}">{t}</a>'
+    # Username yo'q bo'lsa — chat_id orqali link
+    cid = str(g.chat_id)
+    if cid.startswith("-100"):
+        cid = cid[4:]
+    elif cid.startswith("-"):
+        cid = cid[1:]
+    return f'<a href="https://t.me/c/{cid}">{t}</a>'
+
+
 def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group]) -> str:
     total = len(active) + len(inactive)
     lines = [
@@ -145,18 +159,16 @@ def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group]) -> str
     if active:
         lines.append("\n🟢 <b>Aktiv guruhlar:</b>\n")
         for i, g in enumerate(active, 1):
-            t = g.display_title
-            link = f'<a href="https://t.me/{g.username}">{t}</a>' if g.username else f"<b>{t}</b>"
             members = f"👥 {g.member_count} a'zo  │  " if getattr(g, "member_count", 0) else ""
             lines.append(
-                f"  <b>{i}.</b> ✅ {link}\n"
+                f"  <b>{i}.</b> ✅ {_group_link(g)}\n"
                 f"      {members}📅 {g.added_at or '—'}\n"
             )
     if inactive:
         lines.append("🔴 <b>Chiqarilgan guruhlar:</b>\n")
         for i, g in enumerate(inactive, 1):
             lines.append(
-                f"  <b>{i}.</b> ❌ <b>{g.display_title}</b>\n"
+                f"  <b>{i}.</b> ❌ {_group_link(g)}\n"
                 f"      🔗 {g.at_username}  │  📅 {g.added_at or '—'}\n"
             )
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
@@ -171,11 +183,9 @@ def groups_user_list(active: Sequence[Group]) -> str:
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     ]
     for i, g in enumerate(active, 1):
-        t = g.display_title
-        link = f'<a href="https://t.me/{g.username}">{t}</a>' if g.username else f"<b>{t}</b>"
         members = f"👥 {g.member_count} a'zo  │  " if getattr(g, "member_count", 0) else ""
         lines.append(
-            f"  <b>{i}.</b> 🛡️ {link}\n"
+            f"  <b>{i}.</b> 🛡️ {_group_link(g)}\n"
             f"      {members}📅 {g.added_at or '—'}\n"
         )
     lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
