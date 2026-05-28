@@ -46,13 +46,18 @@ def _load() -> Settings:
         raise RuntimeError("VIRUSTOTAL_API_KEY .env faylida belgilanmagan!")
 
     base = Path(__file__).resolve().parents[2]
-    
-    # Auto-detect Render persistent disk mount at /var/data
-    render_disk = "/var/data"
-    if os.path.exists(render_disk):
-        db_path = os.path.join(render_disk, "users.db")
+
+    # DB_PATH .env da belgilangan bo'lsa — uni ishlatamiz
+    # Aks holda Render.com /var/data disk, yo'q bo'lsa loyiha papkasi
+    custom_db = os.getenv("DB_PATH")
+    if custom_db:
+        db_path = custom_db
     else:
-        db_path = str(base / "users.db")
+        render_disk = "/var/data"
+        if os.path.exists(render_disk) and os.access(render_disk, os.W_OK):
+            db_path = os.path.join(render_disk, "users.db")
+        else:
+            db_path = str(base / "users.db")
 
     return Settings(
         bot_token=bot_token,
