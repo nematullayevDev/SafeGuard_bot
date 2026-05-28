@@ -8,9 +8,10 @@ from app.services.spam_detector import SpamDetector
 from app.services.virustotal_service import VirusTotalService
 from app.services.uzbek_nlp import UzbekNLPService
 from app.services.state_sync_service import StateSyncService
+from app.services.qr_scanner import decode_qr
 
 __all__ = [
     "BroadcastService", "ExportService", "ModerationService",
     "RateLimiter", "ScanService", "SpamDetector", "VirusTotalService",
-    "extract_links", "UzbekNLPService", "StateSyncService",
+    "extract_links", "UzbekNLPService", "StateSyncService", "decode_qr",
 ]

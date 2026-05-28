@@ -298,6 +298,110 @@ def register(dp: Dispatcher, c: Container) -> None:
         if not any_bad:
             await _safe_delete(wait)
 
+    async def handle_group_photo(message: Message):
+        chat_id = message.chat.id
+        if not c.user_settings.get_group_mode(chat_id):
+            return
+        
+        filters = c.user_settings.get_group_settings(chat_id)
+        if not filters.get("filter_links", True) and not filters.get("filter_nlp", True):
+            return
+
+        sender = message.from_user.first_name if message.from_user else "Noma'lum"
+        sender_id = message.from_user.id if message.from_user else 0
+        mention = formatters.mention(sender_id, sender)
+
+        photo = message.photo[-1]
+        try:
+            import io
+            from app.services import decode_qr
+            
+            downloaded = io.BytesIO()
+            await bot.download(photo.file_id, destination=downloaded)
+            image_bytes = downloaded.getvalue()
+            
+            qr_data = decode_qr(image_bytes)
+            if not qr_data:
+                return
+            
+            if qr_data.startswith(("http://", "https://")):
+                if not filters.get("filter_links", True):
+                    return
+                
+                if c.blacklist.exists(qr_data):
+                    await _safe_delete(message)
+                    await bot.send_message(
+                        chat_id,
+                        f"🚨 <b>XAVFLI QR-KOD BLOKLANDI!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 Yuboruvchi: {mention}\n"
+                        f"🔗 Havola: {qr_data[:50]}...\n"
+                        f"📋 Qora ro'yxatda mavjud!",
+                        parse_mode="HTML"
+                    )
+                    await _save_forensics_case(message, "link", f"QR-kod orqali qora ro'yxatdagi xavfli link yubordi: {qr_data}", c)
+                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, "QR-kod orqali xavfli link tarqatish")
+                    return
+                
+                result = await c.scanner.scan_url(sender_id, qr_data)
+                if result.verdict.is_bad:
+                    await _safe_delete(message)
+                    await bot.send_message(
+                        chat_id,
+                        f"🚨 <b>XAVFLI QR-KOD BLOKLANDI!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 Yuboruvchi: {mention}\n"
+                        f"🔗 Havola: {qr_data[:50]}...\n\n"
+                        f"{formatters.scan_result(result)}",
+                        parse_mode="HTML"
+                    )
+                    await _save_forensics_case(message, "link", f"QR-kod orqali antivirus aniqlagan xavfli link yubordi: {qr_data} ({result.malicious} ta tahdid)", c)
+                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, "QR-kod orqali xavfli link tarqatish")
+                else:
+                    await message.reply(
+                        f"🔍 <b>Rasmdan QR-kod aniqlandi!</b>\n"
+                        f"🔗 Havola: <code>{qr_data}</code>\n"
+                        f"✅ Havola xavfsiz topildi.",
+                        parse_mode="HTML"
+                    )
+            else:
+                if not filters.get("filter_nlp", True):
+                    return
+                
+                nlp_res = await c.nlp.analyze_text(qr_data)
+                if nlp_res["is_violation"]:
+                    await _safe_delete(message)
+                    category = nlp_res["category"] or "other"
+                    reason = nlp_res["reason"]
+                    
+                    await bot.send_message(
+                        chat_id,
+                        f"🚨 <b>TAQIQLANGAN QR-KOD BLOKLANDI!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 Yuboruvchi: {mention}\n"
+                        f"📂 Kategoriya: <code>{category.upper()}</code>\n"
+                        f"📝 Izoh: <i>{reason}</i>",
+                        parse_mode="HTML"
+                    )
+                    await _save_forensics_case(message, category, f"QR-kod matnidan qoidabuzarlik topildi: {qr_data[:100]}", c)
+                    
+                    reason_map = {
+                        "extremism": "QR-kod orqali diniy extremism/radikalizm",
+                        "drugs": "QR-kod orqali giyohvandlik targ'iboti",
+                        "bullying": "QR-kod orqali kiberbulling/haqorat"
+                    }
+                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, reason_map.get(category, f"QR-kod qoidabuzarligi: {reason}"))
+                else:
+                    await message.reply(
+                        f"🔍 <b>Rasmdan QR-kod aniqlandi!</b>\n"
+                        f"📝 Matn: <code>{qr_data}</code>\n"
+                        f"✅ Matn xavfsiz topildi.",
+                        parse_mode="HTML"
+                    )
+                    
+        except Exception as e:
+            logger.error("Guruh rasm/QR xato: %s", e)
+
     async def cmd_settings(message: Message):
         if not await is_chat_admin(message):
             await message.answer(GROUP_ADMIN_ONLY)
@@ -359,6 +463,7 @@ def register(dp: Dispatcher, c: Container) -> None:
     dp.message.register(cmd_unwarn, Command("unwarn"), group_filter)
 
     dp.message.register(handle_group_document, F.document, group_filter)
+    dp.message.register(handle_group_photo, F.photo, group_filter)
     dp.message.register(handle_group_message, group_filter)
 
     dp.callback_query.register(handle_toggle_gset, F.data.startswith("toggle_gset_"))

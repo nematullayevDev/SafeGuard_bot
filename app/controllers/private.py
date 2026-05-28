@@ -103,8 +103,8 @@ def register(dp: Dispatcher, c: Container) -> None:
             await message.answer(response, reply_markup=main_menu(is_admin_user))
             return
 
-        # Matnli xabar bo'lsa, IIV AI va NLP tahlilini amalga oshiramiz
-        wait = await message.answer("🔍 IIV AI tahlil tizimi matnni tekshirmoqda...")
+        # Matnli xabar bo'lsa, SafeGuard AI va NLP tahlilini amalga oshiramiz
+        wait = await message.answer("🔍 SafeGuard AI tahlil tizimi matnni tekshirmoqda...")
         try:
             nlp_res = await c.nlp.analyze_text(text)
             if nlp_res["is_violation"]:
@@ -152,10 +152,62 @@ def register(dp: Dispatcher, c: Container) -> None:
         await message.answer(
             "📨 Menga quyidagilarni yuboring:\n\n"
             "🔗 Link — http:// yoki https:// bilan\n"
-            "📦 APK yoki boshqa fayl",
+            "📦 APK yoki boshqa fayl\n"
+            "🖼️ QR-kodli rasm",
             reply_markup=main_menu(is_admin_user),
         )
 
+    async def handle_private_photo(message: Message):
+        if not await ensure_registered(message, c):
+            return
+        uid = message.from_user.id
+        is_admin_user = is_owner(message)
+        if c.rate_limiter.hit(uid):
+            await message.answer(_rate_limit_text())
+            return
+
+        photo = message.photo[-1]
+        wait = await message.answer("⏳ Rasm yuklab olinmoqda va QR-kod tahlil qilinmoqda...")
+        try:
+            import io
+            from app.services import decode_qr
+            
+            downloaded = io.BytesIO()
+            await bot.download(photo.file_id, destination=downloaded)
+            image_bytes = downloaded.getvalue()
+            
+            qr_data = decode_qr(image_bytes)
+            if not qr_data:
+                await wait.edit_text("❌ Ushbu rasmdan hech qanday QR-kod aniqlanmadi.")
+                return
+            
+            await wait.edit_text(f"🔍 QR-kod topildi!\n\n📥 <b>Tarkibi:</b> <code>{qr_data}</code>\n\n⏳ Xavfsizlik tekshiruvi ketmoqda...", parse_mode="HTML")
+            
+            if qr_data.startswith(("http://", "https://")):
+                if c.blacklist.exists(qr_data):
+                    await wait.edit_text(
+                        f"🔍 QR-kod tarkibi: <code>{qr_data}</code>\n\n"
+                        "🔴 XAVFLI — Qora ro'yxatda!\n\n❌ Bu link oldin xavfli topilgan!",
+                        parse_mode="HTML"
+                    )
+                    return
+                
+                result = await c.scanner.scan_url(uid, qr_data)
+                response = formatters.scan_result(result)
+                await wait.edit_text(f"🔍 QR-kod havolasi skaner qilindi:\n\n{response}", parse_mode="HTML")
+            else:
+                nlp_res = await c.nlp.analyze_text(qr_data)
+                response = formatters.nlp_forensic_report(nlp_res, qr_data)
+                await wait.edit_text(response, parse_mode="HTML")
+                
+        except Exception as e:
+            logger.error("Shaxsiy rasm/QR xato: %s", e)
+            try:
+                await wait.edit_text(f"❌ Xatolik yuz berdi: {e}")
+            except Exception:
+                await message.answer(f"❌ Xatolik yuz berdi: {e}")
+
 
     dp.message.register(handle_document, F.document, F.chat.type == "private")
+    dp.message.register(handle_private_photo, F.photo, F.chat.type == "private")
     dp.message.register(handle_message, F.chat.type == "private")

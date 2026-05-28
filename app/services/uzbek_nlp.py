@@ -237,7 +237,7 @@ class UzbekNLPService:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self._api_key}"
                 prompt = (
-                    "Siz O'zbekiston Respublikasi Ichki Ishlar Vazirligi (IIV) kiber-xavfsizlik tahlilchisisiz. "
+                    "Siz SafeGuard kiber-xavfsizlik tahlilchisisiz. "
                     "Quyidagi matnni tahlil qiling va unda ushbu uchta jinoyat yoki qonunbuzarlik belgilari borligini aniqlang:\n"
                     "- extremism: Oliy sud taqiqlagan radikal diniy g'oyalar, shiorlar, ekstremistik guruhlar (ISID, Hizb ut-Tahrir va b.) targ'iboti.\n"
                     "- drugs: Sintetik giyohvand moddalar (mef, sol, kristall), taqiqlangan dorilar sotilishi, kladmenlik yoki kurirlik yashirin targ'iboti.\n"

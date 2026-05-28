@@ -3,3 +3,6 @@ python-dotenv
 aiohttp
 python-docx
 reportlab
+opencv-python-headless
+numpy
+

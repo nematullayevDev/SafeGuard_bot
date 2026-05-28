@@ -234,7 +234,7 @@ def nlp_violation_warning(category: str, reason: str, sender_mention: str) -> st
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"{legal_note}\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📢 <i>IIV Kiber-Xavfsizlik Departamentining avtomatik nazorat tizimi.</i>"
+        f"📢 <i>SafeGuard Kiberxavfsizlik avtomatik nazorat tizimi.</i>"
     )
 
 
@@ -263,7 +263,7 @@ def nlp_forensic_report(result: dict, raw_text: str) -> str:
         )
 
     return (
-        f"{status_color} <b>ICHKI ISHLAR VAZIRLIGI KIBER-TERGOV TIZIMI</b>\n"
+        f"{status_color} <b>SafeGuard Bot KIBER-TERGOV TIZIMI</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
         f"📊 <b>Ekspertiza Xulosasi:</b>\n"
         f"  • <b>Holat:</b> <code>{status_emoji}</code>\n"
@@ -276,20 +276,20 @@ def nlp_forensic_report(result: dict, raw_text: str) -> str:
         f"  <code>{reason}</code>\n"
         f"{legal_section}"
         f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📢 <i>IIV Raqamli Ekspertiza va Kiber-Tergov Departamentining rasmiy tahlilnomasi.</i>"
+        f"📢 <i>SafeGuard Raqamli Ekspertiza va Kiberxavfsizlik tizimining rasmiy tahlilnomasi.</i>"
     )
 
 
 def state_sync_result(res: dict) -> str:
     return (
-        "🏛 <b>IIV Davlat Integratsiya Tizimi</b>\n"
+        "🏛 <b>SafeGuard Global Integratsiya Tizimi</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━\n"
         "Davlat ochiq ma'lumotlar bazalari bilan sinxronizatsiya yakunlandi.\n\n"
         f"📂 <b>Holat:</b> <code>{res['status']}</code>\n"
         f"🚫 <b>Ekstremistik sayt/kanallar:</b> +<b>{res['banned_added']}</b> ta yangi qo'shildi\n"
         f"🔗 <b>Fishing havolalar:</b> +<b>{res['phishing_added']}</b> ta qora ro'yxatga olindi\n"
         "━━━━━━━━━━━━━━━━━━━━━\n"
-        "📢 <i>Lokal bazalar IIV va Kiberxavfsizlik departamenti ro'yxatlari bilan muvaffaqiyatli sinxronlandi.</i>"
+        "📢 <i>Lokal bazalar SafeGuard Kiberxavfsizlik tizimi ro'yxatlari bilan muvaffaqiyatli sinxronlandi.</i>"
     )
 
 
