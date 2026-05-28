@@ -96,8 +96,19 @@ def register(dp: Dispatcher, c: Container) -> None:
         chat = update.chat
         new_status = update.new_chat_member.status
         if new_status in ("member", "administrator"):
+            # Invite linkni olishga urinamiz
+            invite_link = ""
+            try:
+                chat_info = await bot.get_chat(chat.id)
+                invite_link = chat_info.invite_link or ""
+                if not invite_link:
+                    link_obj = await bot.create_chat_invite_link(chat.id)
+                    invite_link = link_obj.invite_link or ""
+            except Exception:
+                pass
+
             c.user_settings.set_group_mode(chat.id, True)
-            c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "")
+            c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link)
             try:
                 await bot.send_message(chat.id, GROUP_ADDED, parse_mode="HTML")
             except Exception as e:
@@ -106,7 +117,6 @@ def register(dp: Dispatcher, c: Container) -> None:
             c.user_settings.set_group_mode(chat.id, False)
             c.groups.deactivate(chat.id)
         else:
-            # Guruh nomi yoki username o'zgarganda ham yangilaymiz
             c.groups.update_info(chat.id, chat.title or "Noma'lum", chat.username or "")
 
     async def chat_updated(update: ChatMemberUpdated):

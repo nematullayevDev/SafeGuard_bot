@@ -129,5 +129,4 @@ def init_schema() -> None:
         _add_column_if_not_exists(c, "user_settings", "filter_links", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "user_settings", "filter_files", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "user_settings", "filter_nlp", "INTEGER DEFAULT 1")
-        _add_column_if_not_exists(c, "users", "quiz_passed", "INTEGER DEFAULT 0")
-        _add_column_if_not_exists(c, "users", "quiz_score", "INTEGER DEFAULT 0")
+        _add_column_if_not_exists(c, "groups", "invite_link", "TEXT DEFAULT ''")

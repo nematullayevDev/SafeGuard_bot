@@ -8,6 +8,7 @@ class Group:
     username: str
     is_active: bool
     added_at: str
+    invite_link: str = ""
 
     @property
     def at_username(self) -> str:
