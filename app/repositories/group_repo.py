@@ -31,6 +31,14 @@ class GroupRepository(BaseRepository):
                  datetime.now().strftime("%d.%m.%Y %H:%M")),
             )
 
+    def update_info(self, chat_id: int, title: str, username: str) -> None:
+        """Guruh nomi yoki username o'zgarganida yangilaydi."""
+        with get_conn() as conn:
+            conn.execute(
+                "UPDATE groups SET title = ?, username = ? WHERE chat_id = ?",
+                (title, username or "", chat_id),
+            )
+
     def deactivate(self, chat_id: int) -> None:
         with get_conn() as conn:
             conn.execute("UPDATE groups SET is_active = 0 WHERE chat_id = ?", (chat_id,))

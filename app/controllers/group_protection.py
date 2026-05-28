@@ -162,8 +162,17 @@ def register(dp: Dispatcher, c: Container) -> None:
             f"✅ <b>{target.full_name}</b> warnlari tozalandi.", parse_mode="HTML"
         )
 
+    async def _sync_group_info(message: Message) -> None:
+        """Guruh nomi yoki username o'zgarganida bazani yangilaydi."""
+        try:
+            chat = message.chat
+            c.groups.update_info(chat.id, chat.title or "Noma'lum", chat.username or "")
+        except Exception as e:
+            logger.warning("Guruh ma'lumotlarini yangilashda xatolik: %s", e)
+
     async def handle_group_document(message: Message):
         chat_id = message.chat.id
+        await _sync_group_info(message)
         if not c.user_settings.get_group_mode(chat_id):
             return
         
@@ -208,6 +217,7 @@ def register(dp: Dispatcher, c: Container) -> None:
 
     async def handle_group_message(message: Message):
         chat_id = message.chat.id
+        await _sync_group_info(message)
         if not c.user_settings.get_group_mode(chat_id):
             return
         text = message.text or message.caption or ""
@@ -300,6 +310,7 @@ def register(dp: Dispatcher, c: Container) -> None:
 
     async def handle_group_photo(message: Message):
         chat_id = message.chat.id
+        await _sync_group_info(message)
         if not c.user_settings.get_group_mode(chat_id):
             return
         
