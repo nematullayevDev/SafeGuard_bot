@@ -36,9 +36,10 @@ async def run_daily_backup(bot: Bot, container: Container) -> None:
 
 
 
+_tips_service = TipsService()
+
 async def run_daily_tip(bot: Bot, container: Container) -> None:
-    tips_service = TipsService()
-    tip = tips_service.get_random_tip()
+    tip = _tips_service.get_daily_tip()
     active_groups = container.groups.active()
     
     logger.info(f"Kun maslahatini {len(active_groups)} ta aktiv guruhga yuborish boshlanmoqda...")
