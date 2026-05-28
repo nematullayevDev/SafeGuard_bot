@@ -123,6 +123,7 @@ async def main() -> None:
                 await bot.delete_webhook()
             except Exception as e:
                 logger.warning(f"Webhook o'chirishda xatolik: {e}")
+            await container.vt.close()
             await runner.cleanup()
     else:
         # Standart Polling rejimi
@@ -143,6 +144,7 @@ async def main() -> None:
         try:
             await dp.start_polling(bot)
         finally:
+            await container.vt.close()
             if server_runner:
                 logger.info("🧹 Dummy polling serveri tozalanmoqda...")
                 await server_runner.cleanup()

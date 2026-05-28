@@ -14,6 +14,7 @@ from app.controllers.filters import ensure_registered, is_owner
 from app.core.bot import bot
 from app.core.config import settings
 from app.states import Registration
+from app.views import keyboards
 from app.views.keyboards import main_menu, phone_keyboard, persistent_menu_keyboard
 from app.views.texts import REG_REQUIRED, WELCOME
 
