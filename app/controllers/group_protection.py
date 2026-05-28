@@ -120,10 +120,9 @@ def register(dp: Dispatcher, c: Container) -> None:
             welcome = GROUP_ADDED
             if not can_invite:
                 welcome += (
-                    "\n\n⚠️ <b>Diqqat!</b> Botga <b>«Havola orqali taklif qilish»</b> "
-                    "huquqi berilmagan.\n"
-                    "Bot admin panelida guruh nomiga bosib o'tish uchun "
-                    "ushbu huquqni yoqing yoki guruhda /getlink buyrug'ini bering."
+                    "\n\n⚠️ <b>Diqqat!</b> Botdan to'liq foydalanish uchun "
+                    "adminlar ro'yxatida botga <b>«Havola orqali taklif qilish»</b> "
+                    "huquqini yoqib qo'ying."
                 )
             try:
                 await bot.send_message(chat.id, welcome, parse_mode="HTML")
