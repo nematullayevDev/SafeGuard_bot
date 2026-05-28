@@ -137,11 +137,16 @@ def _group_link(g: Group) -> str:
     t = g.display_title
     if g.username:
         return f'<a href="https://t.me/{g.username}">{t}</a>'
-    # Username yo'q — invite_link bor bo'lsa uni ishlatamiz
+    # Username yo'q — chat_id orqali link (supergroup va kanallar uchun ishlaydi)
+    cid = str(g.chat_id)
+    if cid.startswith("-100"):
+        cid = cid[4:]
+    elif cid.startswith("-"):
+        cid = cid[1:]
+    # invite_link ham bor bo'lsa uni ishlatamiz
     if getattr(g, "invite_link", ""):
         return f'<a href="{g.invite_link}">{t}</a>'
-    # Ikkalasi ham yo'q — faqat matn
-    return f"<b>{t}</b>"
+    return f'<a href="https://t.me/c/{cid}">{t}</a>'
 
 
 def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group]) -> str:
