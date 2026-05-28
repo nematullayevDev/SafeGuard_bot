@@ -134,8 +134,10 @@ def admin_add_site_platforms_menu() -> InlineKeyboardMarkup:
 def group_mode_menu(is_on: bool) -> InlineKeyboardMarkup:
     status = "✅ Yoqiq" if is_on else "❌ O'chiq"
     toggle = "gm_off" if is_on else "gm_on"
+    # @ belgisini olib tashlaymiz — URL da kerak emas
+    bot_username = settings.bot_username.lstrip("@")
     add_url = (
-        f"https://t.me/{settings.bot_username}"
+        f"https://t.me/{bot_username}"
         "?startgroup=true&admin=delete_messages+restrict_members+ban_users"
     )
     return InlineKeyboardMarkup(inline_keyboard=[
