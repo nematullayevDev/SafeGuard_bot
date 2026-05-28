@@ -16,7 +16,7 @@ from app.core.config import settings
 from app.states import Registration
 from app.views import keyboards
 from app.views.keyboards import main_menu, phone_keyboard, persistent_menu_keyboard
-from app.views.texts import REG_REQUIRED, WELCOME
+from app.views.texts import REG_REQUIRED, WELCOME, PHONE_NOT_UZ
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +65,16 @@ def register(dp: Dispatcher, c: Container) -> None:
         name = message.from_user.first_name or "Foydalanuvchi"
         username = message.from_user.username or ""
         phone = contact.phone_number
+
+        # +998 tekshiruvi — faqat O'zbekiston raqamlari qabul qilinadi
+        normalized = phone.lstrip("+").strip()
+        if not normalized.startswith("998"):
+            await message.answer(
+                PHONE_NOT_UZ.format(phone=f"+{normalized}"),
+                reply_markup=phone_keyboard(),
+                parse_mode="HTML",
+            )
+            return
 
         c.users.save(uid, name, username, phone)
         

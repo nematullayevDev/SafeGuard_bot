@@ -22,8 +22,17 @@ REG_REQUIRED = (
     "Xavfsizlik tizimimizdan to'liq foydalanish va shaxsingizni tasdiqlash uchun ro'yxatdan o'tishingiz so'raladi.\n\n"
     "📱 <b>Ro'yxatdan o'tish uchun:</b>\n"
     "Kiber-tizimimiz sizning telefon raqamingiz orqali verifikatsiya qiladi. Bu shaxsiy profilingiz va guruhlaringiz xavfsizligini ta'minlash uchun zarur.\n\n"
+    "🇺🇿 <b>Diqqat:</b> Tizimdan foydalanish uchun <b>O'zbekiston raqami (+998)</b> talab qilinadi.\n"
+    "Boshqa davlat raqami bilan ro'yxatdan o'tish mumkin emas.\n\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     "👇 <i>Davom etish uchun quyidagi <b>«📱 Raqamimni ulashish»</b> tugmasini bosing:</i>"
+)
+
+PHONE_NOT_UZ = (
+    "🇺🇿 <b>Faqat O'zbekiston raqami qabul qilinadi!</b>\n\n"
+    "Sizning Telegram raqamingiz <b>{phone}</b> — bu O'zbekiston raqami emas.\n\n"
+    "❗ Tizimdan foydalanish uchun <b>+998</b> bilan boshlangan O'zbek raqami talab qilinadi.\n\n"
+    "Agar O'zbekiston raqamiga ega bo'lsangiz, Telegram profilingizni shu raqam bilan yangilang va qayta urinib ko'ring."
 )
 
 GROUP_ADDED = (
