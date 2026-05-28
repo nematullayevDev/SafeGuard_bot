@@ -133,40 +133,52 @@ def history_list(entries: Sequence[HistoryEntry]) -> str:
 
 
 def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group]) -> str:
+    total = len(active) + len(inactive)
     lines = [
-        "🤖 <b>Bot qo'shilgan barcha guruhlar</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"✅ Aktiv: <b>{len(active)}</b> ta  |  "
-        f"❌ Chiqarilgan: <b>{len(inactive)}</b> ta\n"
-        "━━━━━━━━━━━━━━━━━━━━"
+        "🤖 <b>Bot qo'shilgan guruhlar</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 Jami: <b>{total}</b> ta guruh\n"
+        f"🟢 Aktiv: <b>{len(active)}</b> ta  │  "
+        f"🔴 Chiqarilgan: <b>{len(inactive)}</b> ta\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     ]
     if active:
-        lines.append("\n🟢 <b>Aktiv guruhlar:</b>")
+        lines.append("\n🟢 <b>Aktiv guruhlar:</b>\n")
         for i, g in enumerate(active, 1):
             t = g.display_title
             link = f'<a href="https://t.me/{g.username}">{t}</a>' if g.username else f"<b>{t}</b>"
-            lines.append(f"{i}. ✅ {link}\n   🔗 {g.at_username}  📅 {g.added_at or '—'}")
+            members = f"👥 {g.member_count} a'zo  │  " if getattr(g, "member_count", 0) else ""
+            lines.append(
+                f"  <b>{i}.</b> ✅ {link}\n"
+                f"      {members}📅 {g.added_at or '—'}\n"
+            )
     if inactive:
-        lines.append("\n🔴 <b>Chiqarilgan guruhlar:</b>")
+        lines.append("🔴 <b>Chiqarilgan guruhlar:</b>\n")
         for i, g in enumerate(inactive, 1):
             lines.append(
-                f"{i}. ❌ <b>{g.display_title}</b>\n"
-                f"   🔗 {g.at_username}  📅 {g.added_at or '—'}"
+                f"  <b>{i}.</b> ❌ <b>{g.display_title}</b>\n"
+                f"      🔗 {g.at_username}  │  📅 {g.added_at or '—'}\n"
             )
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     return truncate("\n".join(lines), 3800, suffix="...")
 
 
 def groups_user_list(active: Sequence[Group]) -> str:
     lines = [
-        "📋 <b>Bot qo'shilgan aktiv guruhlar</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f"Jami: <b>{len(active)}</b> ta\n"
-        "━━━━━━━━━━━━━━━━━━━━"
+        "📋 <b>Himoya ostidagi guruhlar</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"✅ Aktiv guruhlar: <b>{len(active)}</b> ta\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     ]
     for i, g in enumerate(active, 1):
         t = g.display_title
         link = f'<a href="https://t.me/{g.username}">{t}</a>' if g.username else f"<b>{t}</b>"
-        lines.append(f"{i}. ✅ {link}\n   🔗 {g.at_username}  📅 {g.added_at or '—'}")
+        members = f"👥 {g.member_count} a'zo  │  " if getattr(g, "member_count", 0) else ""
+        lines.append(
+            f"  <b>{i}.</b> 🛡️ {link}\n"
+            f"      {members}📅 {g.added_at or '—'}\n"
+        )
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     return truncate("\n".join(lines), 3800, suffix="...")
 
 
