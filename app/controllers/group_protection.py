@@ -447,6 +447,36 @@ def register(dp: Dispatcher, c: Container) -> None:
             reply_markup=keyboards.group_settings_kb(chat_id, filters)
         )
 
+    async def cmd_getlink(message: Message):
+        """Guruh invite linkini yaratib bazaga saqlaydi."""
+        if not await is_chat_admin(message):
+            await message.answer(GROUP_ADMIN_ONLY)
+            return
+        chat_id = message.chat.id
+        try:
+            chat_info = await bot.get_chat(chat_id)
+            invite_link = chat_info.invite_link or ""
+            if not invite_link:
+                link_obj = await bot.create_chat_invite_link(chat_id)
+                invite_link = link_obj.invite_link or ""
+            if invite_link:
+                c.groups.update_info(
+                    chat_id,
+                    chat_info.title or "Noma'lum",
+                    chat_info.username or "",
+                    invite_link
+                )
+                await message.answer(
+                    f"✅ <b>Invite link saqlandi!</b>\n\n"
+                    f"🔗 {invite_link}\n\n"
+                    f"<i>Endi «Guruhlarim» bo'limida guruh nomiga bosib kirish mumkin.</i>",
+                    parse_mode="HTML"
+                )
+            else:
+                await message.answer("❌ Invite link yaratib bo'lmadi. Bot admin ekanligini tekshiring!")
+        except Exception as e:
+            await message.answer(f"❌ Xatolik: {e}")
+
     async def handle_toggle_gset(call: CallbackQuery):
         chat_id = call.message.chat.id
         try:
@@ -491,6 +521,7 @@ def register(dp: Dispatcher, c: Container) -> None:
     dp.message.register(cmd_disable, Command("disable"), group_filter)
     dp.message.register(cmd_status, Command("status"), group_filter)
     dp.message.register(cmd_settings, Command("settings"), group_filter)
+    dp.message.register(cmd_getlink, Command("getlink"), group_filter)
     dp.message.register(cmd_warn, Command("warn"), group_filter)
     dp.message.register(cmd_warns, Command("warns"), group_filter)
     dp.message.register(cmd_unwarn, Command("unwarn"), group_filter)
