@@ -105,6 +105,17 @@ def register(dp: Dispatcher, c: Container) -> None:
         elif new_status in ("left", "kicked"):
             c.user_settings.set_group_mode(chat.id, False)
             c.groups.deactivate(chat.id)
+        else:
+            # Guruh nomi yoki username o'zgarganda ham yangilaymiz
+            c.groups.update_info(chat.id, chat.title or "Noma'lum", chat.username or "")
+
+    async def chat_updated(update: ChatMemberUpdated):
+        """Guruh nomi, username o'zgarganda avtomatik yangilash."""
+        chat = update.chat
+        try:
+            c.groups.update_info(chat.id, chat.title or "Noma'lum", chat.username or "")
+        except Exception as e:
+            logger.warning("Chat yangilashda xatolik: %s", e)
 
     async def cmd_enable(message: Message):
         if not await is_chat_admin(message):
@@ -465,6 +476,7 @@ def register(dp: Dispatcher, c: Container) -> None:
 
 
     dp.my_chat_member.register(bot_added_to_group)
+    dp.chat_member.register(chat_updated)
     dp.message.register(cmd_enable, Command("enable"), group_filter)
     dp.message.register(cmd_disable, Command("disable"), group_filter)
     dp.message.register(cmd_status, Command("status"), group_filter)

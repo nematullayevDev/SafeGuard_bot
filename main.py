@@ -142,7 +142,13 @@ async def main() -> None:
         # Eski webhookni tozalash va eski kelib qolgan so'rovlarni o'chirish
         await bot.delete_webhook(drop_pending_updates=True)
         try:
-            await dp.start_polling(bot)
+            await dp.start_polling(
+                bot,
+                allowed_updates=[
+                    "message", "callback_query", "my_chat_member",
+                    "chat_member", "inline_query"
+                ]
+            )
         finally:
             await container.vt.close()
             if server_runner:
