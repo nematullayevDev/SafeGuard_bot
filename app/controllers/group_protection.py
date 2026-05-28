@@ -96,14 +96,10 @@ def register(dp: Dispatcher, c: Container) -> None:
         chat = update.chat
         new_status = update.new_chat_member.status
         if new_status in ("member", "administrator"):
-            # Invite linkni olishga urinamiz
             invite_link = ""
-            can_invite = False
             try:
-                # Botning o'z huquqlarini tekshiramiz
                 bot_member = await bot.get_chat_member(chat.id, (await bot.get_me()).id)
                 can_invite = getattr(bot_member, "can_invite_users", False)
-
                 if can_invite:
                     chat_info = await bot.get_chat(chat.id)
                     invite_link = chat_info.invite_link or ""
@@ -115,17 +111,8 @@ def register(dp: Dispatcher, c: Container) -> None:
 
             c.user_settings.set_group_mode(chat.id, True)
             c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link)
-
-            # Xush kelibsiz xabar + huquq ogohlantirishini yuboramiz
-            welcome = GROUP_ADDED
-            if not can_invite:
-                welcome += (
-                    "\n\n⚠️ <b>Diqqat!</b> Botdan to'liq foydalanish uchun "
-                    "adminlar ro'yxatida botga <b>«Havola orqali taklif qilish»</b> "
-                    "huquqini yoqib qo'ying."
-                )
             try:
-                await bot.send_message(chat.id, welcome, parse_mode="HTML")
+                await bot.send_message(chat.id, GROUP_ADDED, parse_mode="HTML")
             except Exception as e:
                 logger.warning("Guruh xush kelibsiz xabari yuborilmadi: %s", e)
         elif new_status in ("left", "kicked"):
