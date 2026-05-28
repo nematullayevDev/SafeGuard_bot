@@ -138,7 +138,7 @@ def group_mode_menu(is_on: bool) -> InlineKeyboardMarkup:
     bot_username = settings.bot_username.lstrip("@")
     add_url = (
         f"https://t.me/{bot_username}"
-        "?startgroup=true&admin=delete_messages+restrict_members+ban_users"
+        "?startgroup=true&admin=delete_messages+restrict_members+ban_users+invite_users+change_info"
     )
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="Holat: " + status, callback_data=toggle)],
