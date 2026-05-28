@@ -5,6 +5,10 @@ from app.repositories.base import BaseRepository, get_conn
 
 
 class GroupRepository(BaseRepository):
+    # RAM da kesh — {chat_id: (title, username)}
+    # Bazaga faqat o'zgarish bo'lganda yoziladi
+    _cache: dict[int, tuple[str, str]] = {}
+
     @staticmethod
     def _row_to_group(row) -> Group:
         return Group(
@@ -35,7 +39,17 @@ class GroupRepository(BaseRepository):
             )
 
     def update_info(self, chat_id: int, title: str, username: str, invite_link: str = "") -> None:
-        """Guruh nomi, username yoki invite_link o'zgarganida yangilaydi."""
+        """Guruh nomi yoki username o'zgarganida yangilaydi.
+        
+        Kesh orqali ishlaydi — bazaga faqat haqiqiy o'zgarish bo'lganda yozadi.
+        100 ta odam yozsa ham bazaga 0 ta so'rov ketadi (agar nom o'zgarmagan bo'lsa).
+        """
+        cached = self._cache.get(chat_id)
+        if cached == (title, username):
+            # Nom o'zgarmagan — bazaga yozmasdan qaytamiz
+            return
+
+        # O'zgarish bor — bazani yangilaymiz
         with get_conn() as conn:
             conn.execute(
                 """UPDATE groups SET title = ?, username = ?,
@@ -43,6 +57,8 @@ class GroupRepository(BaseRepository):
                    WHERE chat_id = ?""",
                 (title, username or "", invite_link, invite_link, chat_id),
             )
+        # Keshni yangilaymiz
+        self._cache[chat_id] = (title, username)
 
     def deactivate(self, chat_id: int) -> None:
         with get_conn() as conn:
