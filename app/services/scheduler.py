@@ -62,15 +62,26 @@ _tips_service = TipsService()
 
 async def run_daily_tip(bot: Bot, container: Container) -> None:
     tip = _tips_service.get_daily_tip()
-    active_groups = container.groups.active()
 
+    # 1. Barcha foydalanuvchilarga yuborish
+    users = container.users.all()
+    logger.info(f"Kun maslahatini {len(users)} ta foydalanuvchiga yuborish boshlanmoqda...")
+    for user in users:
+        try:
+            await bot.send_message(user.user_id, tip, parse_mode="HTML")
+            await asyncio.sleep(0.05)
+        except Exception as e:
+            logger.warning(f"Foydalanuvchiga ({user.user_id}) maslahat yuborishda xatolik: {e}")
+
+    # 2. Barcha aktiv guruhlarga yuborish
+    active_groups = container.groups.active()
     logger.info(f"Kun maslahatini {len(active_groups)} ta aktiv guruhga yuborish boshlanmoqda...")
     for group in active_groups:
         try:
             await bot.send_message(group.chat_id, tip, parse_mode="HTML")
             await asyncio.sleep(0.5)
         except Exception as e:
-            logger.warning(f"Guruhga ({group.chat_id}) kun maslahatini yuborishda xatolik: {e}")
+            logger.warning(f"Guruhga ({group.chat_id}) maslahat yuborishda xatolik: {e}")
 
 
 async def _backup_loop(bot: Bot, container: Container) -> None:
