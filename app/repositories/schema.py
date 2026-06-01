@@ -130,3 +130,5 @@ def init_schema() -> None:
         _add_column_if_not_exists(c, "user_settings", "filter_files", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "user_settings", "filter_nlp", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "groups", "invite_link", "TEXT DEFAULT ''")
+        # Kim qo'shganini bilish uchun — foydalanuvchi faqat o'zi qo'shgan guruhlarni ko'radi
+        _add_column_if_not_exists(c, "groups", "added_by", "INTEGER DEFAULT 0")
