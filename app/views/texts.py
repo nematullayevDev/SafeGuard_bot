@@ -87,15 +87,20 @@ CHANNEL_SUBSCRIBE_FAIL = (
 )
 
 GROUP_NO_INVITE_LINK = (
-    "⚠️ <b>Diqqat! Bot to'liq ishlay olmayapti.</b>\n"
+    "🚫 <b>SafeGuard Bot guruhga qo'shila olmadi!</b>\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "❌ Guruh sozlamalarida <b>«Havola orqali taklif qilish»</b> funksiyasi <b>O'CHIRILGAN</b>.\n\n"
+    "Bu funksiya o'chiq bo'lsa, SafeGuard Bot:\n"
+    " • Admin panelida guruhni ro'yxatga ola olmaydi\n"
+    " • «Bot qaysi guruhlarda» bo'limida ko'rinmaydi\n"
+    " • Guruh havolasini saqlayolmaydi\n\n"
+    "Shuning uchun bot guruhdan <b>avtomatik chiqib ketdi</b>.\n\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    "Guruh sozlamalarida <b>«Havola orqali taklif qilish»</b> o'chirilgan.\n\n"
-    "Bot admin panelidagi <b>«Guruhlarim»</b> bo'limida bu guruhga kirish havolasini\n"
-    "ko'rsata olmaydi va yangi a'zolarni taklif qila olmaydi.\n\n"
-    "🔧 <b>Tuzatish uchun:</b>\n"
+    "🔧 <b>Tuzatish uchun:</b>\n\n"
     " 1️⃣ Guruh sozlamalarini oching\n"
-    " 2️⃣ <b>Guruh turi → Havola orqali taklif qilish</b>ni yoqing\n"
-    " 3️⃣ Yoki guruhni <b>Public (ochiq)</b> qiling\n\n"
+    " 2️⃣ <b>Guruh turi</b> bo'limiga kiring\n"
+    " 3️⃣ <b>«Havola orqali taklif qilish»</b> ni yoqing ✅\n"
+    " 4️⃣ Botni qayta guruhga qo'shing va <b>Admin huquqi</b> bering\n\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    "ℹ️ <i>Himoya funksiyalari ishlashda davom etadi, lekin admin panel integratsiyasi cheklangan bo'ladi.</i>"
+    "🤖 <i>SafeGuard — Faqat to'g'ri sozlangan guruhlarda ishlaydi!</i>"
 )

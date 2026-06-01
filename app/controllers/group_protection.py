@@ -110,15 +110,8 @@ def register(dp: Dispatcher, c: Container) -> None:
             except Exception:
                 pass
 
-            c.user_settings.set_group_mode(chat.id, True)
-            c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link)
-
-            try:
-                await bot.send_message(chat.id, GROUP_ADDED, parse_mode="HTML")
-            except Exception as e:
-                logger.warning("Guruh xush kelibsiz xabari yuborilmadi: %s", e)
-
-            # ── Havola orqali taklif qilish o'chiq bo'lsa ogohlantirish ──
+            # ── Havola orqali taklif qilish o'chiq bo'lsa ──────────────
+            # Bot ishlay olmaydi — ogohlantirish yuborib, guruhdan chiqib ketadi
             if not can_invite and not invite_link:
                 try:
                     await bot.send_message(
@@ -128,6 +121,22 @@ def register(dp: Dispatcher, c: Container) -> None:
                     )
                 except Exception as e:
                     logger.warning("Invite link ogohlantirishni yuborishda xatolik: %s", e)
+                # Guruhdan chiqib ketish
+                try:
+                    await bot.leave_chat(chat.id)
+                    logger.info("Bot guruhdan chiqdi (invite link yo'q): %s", chat.id)
+                except Exception as e:
+                    logger.warning("Guruhdan chiqishda xatolik: %s", e)
+                return
+
+            # ── Havola bor → normal qo'shilish ─────────────────────────
+            c.user_settings.set_group_mode(chat.id, True)
+            c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link)
+
+            try:
+                await bot.send_message(chat.id, GROUP_ADDED, parse_mode="HTML")
+            except Exception as e:
+                logger.warning("Guruh xush kelibsiz xabari yuborilmadi: %s", e)
 
         elif new_status in ("left", "kicked"):
             c.user_settings.set_group_mode(chat.id, False)
