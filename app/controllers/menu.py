@@ -243,12 +243,14 @@ def register(dp: Dispatcher, c: Container) -> None:
         await call.answer()
 
     async def gm_list(call: CallbackQuery):
-        active = c.groups.active()
-        if not active:
+        # Faqat shu foydalanuvchi o'zi qo'shgan guruhlarni ko'rsatamiz
+        user_id = call.from_user.id
+        my_groups = c.groups.active_by_user(user_id)
+        if not my_groups:
             await call.message.edit_text(
-                "📋 <b>Bot qo'shilgan guruhlar</b>\n\n"
-                "❗ Hali hech qanday aktiv guruh yo'q.\n\n"
-                "➕ <i>Guruhga qo'shish</i> tugmasini bosing!",
+                "📋 <b>Mening guruhlarim</b>\n\n"
+                "❗ Siz hali hech qanday guruhga bot qo'shmagansiz.\n\n"
+                "➕ <i>«Guruhga qo'shish»</i> tugmasini bosib botni guruhingizga qo'shing!",
                 reply_markup=InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text="🔙 Orqaga", callback_data="group_mode")]
                 ]),
@@ -256,7 +258,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
         else:
             await call.message.edit_text(
-                formatters.groups_user_list(active),
+                formatters.groups_user_list(my_groups),
                 reply_markup=groups_export_kb(back_cb="group_mode"),
                 parse_mode="HTML",
             )

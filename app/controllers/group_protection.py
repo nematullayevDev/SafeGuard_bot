@@ -131,7 +131,9 @@ def register(dp: Dispatcher, c: Container) -> None:
 
             # ── Havola bor → normal qo'shilish ─────────────────────────
             c.user_settings.set_group_mode(chat.id, True)
-            c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link)
+            # Guruhga kimni qo'shganini saqlaymiz
+            added_by = update.from_user.id if update.from_user else 0
+            c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link, added_by)
 
             try:
                 await bot.send_message(chat.id, GROUP_ADDED, parse_mode="HTML")
