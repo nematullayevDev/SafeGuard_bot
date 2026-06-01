@@ -327,3 +327,18 @@ def quiz_result_kb() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🔙 Bosh Menyuga Qaytish", callback_data="main_menu")]
     ])
 
+
+def channel_subscribe_kb(channel_username: str) -> InlineKeyboardMarkup:
+    """Kanalga obuna bo'lish va tekshirish tugmalari."""
+    uname = channel_username.lstrip("@")
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📢 Kanalga o'tish va obuna bo'lish",
+            url=f"https://t.me/{uname}",
+        )],
+        [InlineKeyboardButton(
+            text="✅ Obunani tekshirish",
+            callback_data="check_subscription",
+        )],
+    ])
+
