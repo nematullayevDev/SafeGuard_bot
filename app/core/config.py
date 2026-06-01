@@ -18,6 +18,12 @@ class Settings:
     base_dir: Path
     gemini_api_key: str | None = None
 
+    # ─── Kanal sozlamalari ───────────────────────────
+    # Majburiy obuna kanali. Misol: @SafeGuard_news
+    channel_username: str = "@SafeGuard_news"
+    # Kanalning raqamli ID si. Misol: -1001234567890
+    channel_id: int = 0
+
     rate_limit_max: int = 5
     rate_limit_window: int = 60
     max_file_size_mb: int = 32
@@ -67,6 +73,8 @@ def _load() -> Settings:
         db_path=db_path,
         base_dir=base,
         gemini_api_key=os.getenv("GEMINI_API_KEY"),
+        channel_username=os.getenv("CHANNEL_USERNAME", "@SafeGuard_news"),
+        channel_id=int(os.getenv("CHANNEL_ID", "0")),
     )
 
 

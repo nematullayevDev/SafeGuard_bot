@@ -11,3 +11,9 @@ users.db
 # OS files
 .DS_Store
 Thumbs.db
+
+# Forensics photos — shaxsiy ma'lumotlar, GitHubga yuklanmasin
+forensics_photos/
+
+# Backup fayllar
+*.db.bak

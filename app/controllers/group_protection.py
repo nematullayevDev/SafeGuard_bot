@@ -14,7 +14,7 @@ from app.core.config import settings
 from app.models import ScanVerdict
 from app.services import extract_links
 from app.views import formatters, keyboards
-from app.views.texts import GROUP_ADDED, GROUP_ADMIN_ONLY
+from app.views.texts import GROUP_ADDED, GROUP_ADMIN_ONLY, GROUP_NO_INVITE_LINK
 from app.repositories.base import get_conn
 
 logger = logging.getLogger(__name__)
@@ -97,6 +97,7 @@ def register(dp: Dispatcher, c: Container) -> None:
         new_status = update.new_chat_member.status
         if new_status in ("member", "administrator"):
             invite_link = ""
+            can_invite = False
             try:
                 bot_member = await bot.get_chat_member(chat.id, (await bot.get_me()).id)
                 can_invite = getattr(bot_member, "can_invite_users", False)
@@ -111,10 +112,23 @@ def register(dp: Dispatcher, c: Container) -> None:
 
             c.user_settings.set_group_mode(chat.id, True)
             c.groups.save(chat.id, chat.title or "Noma'lum", chat.username or "", invite_link)
+
             try:
                 await bot.send_message(chat.id, GROUP_ADDED, parse_mode="HTML")
             except Exception as e:
                 logger.warning("Guruh xush kelibsiz xabari yuborilmadi: %s", e)
+
+            # ── Havola orqali taklif qilish o'chiq bo'lsa ogohlantirish ──
+            if not can_invite and not invite_link:
+                try:
+                    await bot.send_message(
+                        chat.id,
+                        GROUP_NO_INVITE_LINK,
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logger.warning("Invite link ogohlantirishni yuborishda xatolik: %s", e)
+
         elif new_status in ("left", "kicked"):
             c.user_settings.set_group_mode(chat.id, False)
             c.groups.deactivate(chat.id)
@@ -254,7 +268,33 @@ def register(dp: Dispatcher, c: Container) -> None:
         # Fetch group settings
         filters = c.user_settings.get_group_settings(chat_id)
 
-        # 1. AI va NLP orqali matnli qonunbuzarliklarni tekshirish (Ekstremizm, Narkotik, Bulling)
+        # 0. Rate limit tekshiruvi — bir foydalanuvchi juda ko'p xabar yuborsa
+        if c.rate_limiter.hit(sender_id):
+            return  # Shunchaki o'tkazib yubor, spam qiluvchiga xabar yozma
+
+        # 1. Spam kalit so'zlari tekshiruvi (SpamDetector)
+        if filters.get("filter_nlp", True):
+            if c.spam.is_spam(text):
+                await _safe_delete(message)
+                await bot.send_message(
+                    chat_id,
+                    f"🚫 <b>SPAM ANIQLANDI VA BLOKLANDI!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 Yuboruvchi: {mention}\n"
+                    f"📝 Xabar tarkibida spam belgilari topildi.\n\n"
+                    f"<i>Tizim avtomatik ravishda xabarni o'chirdi.</i>",
+                    parse_mode="HTML",
+                )
+                await _save_forensics_case(
+                    message, "bullying",
+                    "Spam kalit so'zlar aniqlandi", c,
+                )
+                await c.moderator.warn_or_ban(
+                    chat_id, sender_id, sender, "Spam xabar yuborish"
+                )
+                return
+
+        # 2. AI va NLP orqali matnli qonunbuzarliklarni tekshirish (Ekstremizm, Narkotik, Bulling)
         if filters.get("filter_nlp", True):
             nlp_res = await c.nlp.analyze_text(text)
             if nlp_res["is_violation"]:
@@ -262,14 +302,14 @@ def register(dp: Dispatcher, c: Container) -> None:
                 await _safe_delete(message)
                 category = nlp_res["category"] or "other"
                 reason = nlp_res["reason"]
-                
+
                 # Guruhga tahlil kartasini yuborish
                 await bot.send_message(
                     chat_id,
                     formatters.nlp_violation_warning(category, reason, mention),
                     parse_mode="HTML"
                 )
-                
+
                 # Forensika arxivida saqlash
                 await _save_forensics_case(message, category, reason, c)
 
@@ -283,7 +323,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                 await c.moderator.warn_or_ban(chat_id, sender_id, sender, moderator_reason)
                 return
 
-        # 2. Xabar tarkibidagi linklarni tekshirish
+        # 3. Xabar tarkibidagi linklarni tekshirish
         links = extract_links(message)
         if not links:
             return

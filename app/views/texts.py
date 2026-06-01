@@ -60,3 +60,42 @@ ADMIN_ONLY = "⛔ Bu buyruq faqat admin uchun!"
 ADMIN_ONLY_ALERT = "⛔ Faqat admin!"
 GROUP_ADMIN_ONLY = "⛔ Bu buyruq faqat guruh adminlari uchun!"
 REGISTER_FIRST = "⚠️ Avval ro'yxatdan o'ting!\n\n/start ni bosing."
+
+CHANNEL_SUBSCRIBE_REQUIRED = (
+    "📢 <b>SafeGuard rasmiy kanaliga obuna bo'ling!</b>\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "👋 Hurmatli <b>{name}</b>, botdan to'liq foydalanish uchun\n"
+    "rasmiy kanalimizga obuna bo'lishingiz shart.\n\n"
+    "📌 Kanalda nima bor?\n"
+    " 🔐 Kiberxavfsizlik yangiliklari\n"
+    " ⚠️ Yangi tahdidlar haqida ogohlantirishlar\n"
+    " 💡 Foydali maslahatlar va ko'rsatmalar\n"
+    " 🛡 Bot yangiliklari va yangi funksiyalar\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "👇 <b>Quyidagi tugmani bosib kanalga o'ting, obuna bo'ling va «✅ Tekshirish» tugmasini bosing:</b>"
+)
+
+CHANNEL_SUBSCRIBE_SUCCESS = (
+    "✅ <b>Rahmat! Obuna tasdiqlandi.</b>\n\n"
+    "Endi botdan to'liq foydalanishingiz mumkin 🛡"
+)
+
+CHANNEL_SUBSCRIBE_FAIL = (
+    "❌ <b>Siz hali kanalga obuna bo'lmagansiz!</b>\n\n"
+    "Iltimos, avval {channel} kanaliga obuna bo'ling,\n"
+    "so'ng <b>«✅ Tekshirish»</b> tugmasini bosing."
+)
+
+GROUP_NO_INVITE_LINK = (
+    "⚠️ <b>Diqqat! Bot to'liq ishlay olmayapti.</b>\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "Guruh sozlamalarida <b>«Havola orqali taklif qilish»</b> o'chirilgan.\n\n"
+    "Bot admin panelidagi <b>«Guruhlarim»</b> bo'limida bu guruhga kirish havolasini\n"
+    "ko'rsata olmaydi va yangi a'zolarni taklif qila olmaydi.\n\n"
+    "🔧 <b>Tuzatish uchun:</b>\n"
+    " 1️⃣ Guruh sozlamalarini oching\n"
+    " 2️⃣ <b>Guruh turi → Havola orqali taklif qilish</b>ni yoqing\n"
+    " 3️⃣ Yoki guruhni <b>Public (ochiq)</b> qiling\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "ℹ️ <i>Himoya funksiyalari ishlashda davom etadi, lekin admin panel integratsiyasi cheklangan bo'ladi.</i>"
+)
