@@ -88,66 +88,60 @@ async def main() -> None:
 
 
     webhook_url = os.getenv("WEBHOOK_URL")
-    if webhook_url:
-        # Render.com yoki boshqa serverlar uchun Webhook rejimi
-        logger.info("🔧 Webhook rejimi faollashtirilmoqda...")
-        app = web.Application()
-        app.router.add_get("/", health_check)
-        
-        # Webhook handlerni ro'yxatdan o'tkazish
-        handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
-        handler.register(app, path="/webhook")
-        setup_application(app, dp, bot=bot)
-        
-        port = int(os.getenv("PORT", 8080))
-        runner = web.AppRunner(app)
-        await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", port)
-        await site.start()
-        
-        # Telegram webhookni sozlash
-        webhook_target = f"{webhook_url.rstrip('/')}/webhook"
-        try:
-            await bot.set_webhook(webhook_target)
-            logger.info(f"🚀 Webhook muvaffaqiyatli o'rnatildi: {webhook_target}")
-        except Exception as e:
-            logger.error(f"❌ Telegram Wpebhook-ni sozlashda xatolik: {e}")
-            
-        logger.info(f"⚡ Bot {port}-portda so'rovlarni qabul qilmoqda!")
-        
-        # Render serverini uyg'oq ushlab turish uchun o'z-o'zini ping qilish xizmati
-        asyncio.create_task(self_ping(webhook_url))
-        
-        # Jarayonni cheksiz kutish rejimida ushlab turamiz
-        try:
-            await asyncio.Event().wait()
-        except asyncio.CancelledError:
-            pass
-        finally:
-            logger.info("🧹 Webhook serveri yopilmoqda, resurslar tozalanmoqda...")
-            try:
-                await bot.delete_webhook()
-            except Exception as e:
-                logger.warning(f"Webhook o'chirishda xatolik: {e}")
-            await container.vt.close()
-            await runner.cleanup()
-    else:
-        # Standart Polling rejimi
-        server_runner = None
-        if os.getenv("PORT"):
-            port = int(os.getenv("PORT", 8080))
+    runner = None
+    server_runner = None
+
+    try:
+        if webhook_url:
+            # Render.com yoki boshqa serverlar uchun Webhook rejimi
+            logger.info("🔧 Webhook rejimi faollashtirilmoqda...")
             app = web.Application()
             app.router.add_get("/", health_check)
-            server_runner = web.AppRunner(app)
-            await server_runner.setup()
-            site = web.TCPSite(server_runner, "0.0.0.0", port)
+            
+            # Webhook handlerni ro'yxatdan o'tkazish
+            handler = SimpleRequestHandler(dispatcher=dp, bot=bot)
+            handler.register(app, path="/webhook")
+            setup_application(app, dp, bot=bot)
+            
+            port = int(os.getenv("PORT", 8080))
+            runner = web.AppRunner(app)
+            await runner.setup()
+            site = web.TCPSite(runner, "0.0.0.0", port)
             await site.start()
-            logger.info(f"🚀 Dummy server {port}-portda ishga tushdi!")
+            
+            # Telegram webhookni sozlash
+            webhook_target = f"{webhook_url.rstrip('/')}/webhook"
+            try:
+                await bot.set_webhook(webhook_target)
+                logger.info(f"🚀 Webhook muvaffaqiyatli o'rnatildi: {webhook_target}")
+            except Exception as e:
+                logger.error(f"❌ Telegram Wpebhook-ni sozlashda xatolik: {e}")
+                
+            logger.info(f"⚡ Bot {port}-portda so'rovlarni qabul qilmoqda!")
+            
+            # Render serverini uyg'oq ushlab turish uchun o'z-o'zini ping qilish xizmati
+            asyncio.create_task(self_ping(webhook_url))
+            
+            # Jarayonni cheksiz kutish rejimida ushlab turamiz
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                pass
+        else:
+            # Standart Polling rejimi
+            if os.getenv("PORT"):
+                port = int(os.getenv("PORT", 8080))
+                app = web.Application()
+                app.router.add_get("/", health_check)
+                server_runner = web.AppRunner(app)
+                await server_runner.setup()
+                site = web.TCPSite(server_runner, "0.0.0.0", port)
+                await site.start()
+                logger.info(f"🚀 Dummy server {port}-portda ishga tushdi!")
 
-        logger.info("✅ SafeGuard Bot polling rejimida ishga tushdi!")
-        # Eski webhookni tozalash va eski kelib qolgan so'rovlarni o'chirish
-        await bot.delete_webhook(drop_pending_updates=True)
-        try:
+            logger.info("✅ SafeGuard Bot polling rejimida ishga tushdi!")
+            # Eski webhookni tozalash va eski kelib qolgan so'rovlarni o'chirish
+            await bot.delete_webhook(drop_pending_updates=True)
             await dp.start_polling(
                 bot,
                 allowed_updates=[
@@ -155,11 +149,26 @@ async def main() -> None:
                     "chat_member", "inline_query"
                 ]
             )
-        finally:
-            await container.vt.close()
-            if server_runner:
-                logger.info("🧹 Dummy polling serveri tozalanmoqda...")
-                await server_runner.cleanup()
+    finally:
+        logger.info("🧹 Bot to'xtatilmoqda, resurslar tozalanmoqda...")
+        if webhook_url:
+            try:
+                await bot.delete_webhook()
+            except Exception as e:
+                logger.warning(f"Webhook o'chirishda xatolik: {e}")
+        
+        await container.vt.close()
+        try:
+            await bot.session.close()
+        except Exception as e:
+            logger.warning(f"Bot session yopishda xatolik: {e}")
+
+        if runner:
+            logger.info("🧹 Webhook serveri yopilmoqda, resurslar tozalanmoqda...")
+            await runner.cleanup()
+        if server_runner:
+            logger.info("🧹 Dummy polling serveri tozalanmoqda...")
+            await server_runner.cleanup()
 
 
 if __name__ == "__main__":
