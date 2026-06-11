@@ -35,16 +35,34 @@ logger = logging.getLogger(__name__)
 # Yordamchi: foydalanuvchi kanalga obuna bo'lganmi?
 # ──────────────────────────────────────────────────────────────
 async def _is_subscribed(user_id: int) -> bool:
-    """True qaytaradi agar foydalanuvchi settings.channel_id ga obuna bo'lsa."""
-    channel = settings.channel_id or settings.channel_username
+    """True qaytaradi agar foydalanuvchi majburiy kanalga obuna bo'lsa.
+
+    - Kanal sozlanmagan bo'lsa → True (tekshirish o'chirilgan).
+    - Tekshirishda xatolik bo'lsa → True (foydalanuvchini bloklamaslik),
+      lekin aniq sabab logда ko'rsatiladi (eng keng tarqalgani: bot kanalda admin emas).
+    """
+    # Avval raqamli ID, bo'lmasa username bo'yicha tekshiramiz
+    channel = settings.channel_id if settings.channel_id else settings.channel_username
     if not channel:
-        return True          # Kanal sozlanmagan → tekshirish shart emas
+        logger.info("Majburiy obuna O'CHIRILGAN — CHANNEL_ID/CHANNEL_USERNAME sozlanmagan.")
+        return True
     try:
         member = await bot.get_chat_member(channel, user_id)
-        return member.status not in ("left", "kicked", "banned")
+        subscribed = member.status not in ("left", "kicked")
+        logger.info(
+            "Obuna tekshiruvi: user=%s channel=%s status=%s -> obuna=%s",
+            user_id, channel, member.status, subscribed,
+        )
+        return subscribed
     except Exception as e:
-        logger.warning("Kanal obuna tekshirishda xatolik: %s", e)
-        return True          # Xatolik bo'lsa — bloklamaslik (UX)
+        logger.warning(
+            "Kanal obuna tekshirishda XATOLIK [channel=%s, user=%s]: %s | "
+            "Tekshiring: (1) bot kanalga ADMIN qilib qo'shilgan bo'lsin, "
+            "(2) CHANNEL_ID/CHANNEL_USERNAME .env da to'g'ri bo'lsin. "
+            "Hozircha foydalanuvchi o'tkazib yuborildi (bloklanmadi).",
+            channel, user_id, e,
+        )
+        return True
 
 
 async def _send_subscribe_prompt(message: Message) -> None:
