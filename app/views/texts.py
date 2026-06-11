@@ -86,6 +86,12 @@ CHANNEL_SUBSCRIBE_FAIL = (
     "so'ng <b>«✅ Tekshirish»</b> tugmasini bosing."
 )
 
+CHANNEL_SUBSCRIBE_FAIL_ALERT = (
+    "❌ Siz hali kanalga obuna bo'lmagansiz!\n\n"
+    "Iltimos, avval {channel} kanaliga obuna bo'ling,\n"
+    "so'ng «✅ Tekshirish» tugmasini bosing."
+)
+
 GROUP_NO_INVITE_LINK = (
     "🚫 <b>SafeGuard Bot guruhga qo'shila olmadi!</b>\n"
     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"

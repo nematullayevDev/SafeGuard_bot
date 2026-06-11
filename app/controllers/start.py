@@ -20,7 +20,7 @@ from app.views.keyboards import (
     channel_subscribe_kb, main_menu, phone_keyboard, persistent_menu_keyboard,
 )
 from app.views.texts import (
-    CHANNEL_SUBSCRIBE_FAIL,
+    CHANNEL_SUBSCRIBE_FAIL_ALERT,
     CHANNEL_SUBSCRIBE_REQUIRED,
     CHANNEL_SUBSCRIBE_SUCCESS,
     PHONE_NOT_UZ,
@@ -239,7 +239,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             SubscriptionMiddleware.cache.pop(uid, None)
 
             await call.answer(
-                CHANNEL_SUBSCRIBE_FAIL.format(channel=settings.channel_username),
+                CHANNEL_SUBSCRIBE_FAIL_ALERT.format(channel=settings.channel_username),
                 show_alert=True,
             )
 

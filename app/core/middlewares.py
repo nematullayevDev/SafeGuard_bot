@@ -1,4 +1,4 @@
-"""Middleware to enforce mandatory channel subscription check in private chats."""
+"""Middleware to enforce mandatory registration and channel subscription check in private chats."""
 import logging
 import time
 from typing import Callable, Dict, Any, Awaitable
@@ -8,8 +8,12 @@ from aiogram.types import TelegramObject, Message, CallbackQuery
 from app.container import Container
 from app.core.config import settings
 from app.core.bot import bot
-from app.views.keyboards import channel_subscribe_kb
-from app.views.texts import CHANNEL_SUBSCRIBE_REQUIRED, CHANNEL_SUBSCRIBE_FAIL
+from app.views.keyboards import channel_subscribe_kb, go_start_kb
+from app.views.texts import (
+    CHANNEL_SUBSCRIBE_REQUIRED,
+    CHANNEL_SUBSCRIBE_FAIL_ALERT,
+    REGISTER_FIRST,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +21,7 @@ logger = logging.getLogger(__name__)
 class SubscriptionMiddleware(BaseMiddleware):
     # Class-level cache shared across middleware instances: user_id -> (is_subscribed, expiry_time)
     cache: Dict[int, tuple[bool, float]] = {}
-    cache_ttl: float = 120.0  # 2 minutes Time-To-Live
+    cache_ttl: float = 60.0  # 1 minute Time-To-Live for fast status updates
 
     def __init__(self, container: Container) -> None:
         self.container = container
@@ -68,37 +72,49 @@ class SubscriptionMiddleware(BaseMiddleware):
             chat = event.message.chat if event.message else None
             user = event.from_user
 
-        # Enforce check only in private chats for registered users
+        # Enforce check only in private chats
         if chat and chat.type == "private" and user:
-            # Check if user is registered in database
-            is_registered = self.container.users.is_registered(user.id)
-
-            if is_registered:
-                # Bypass check for the start command itself or check_subscription callback
-                is_bypass = False
-                if isinstance(event, Message) and event.text:
-                    parts = event.text.split()
-                    if parts and parts[0] == "/start":
-                        is_bypass = True
-                elif isinstance(event, CallbackQuery) and event.data == "check_subscription":
+            # Check bypass for start/register commands and check_subscription verification callbacks
+            is_bypass = False
+            if isinstance(event, Message) and event.text:
+                parts = event.text.split()
+                if parts and parts[0] == "/start":
                     is_bypass = True
+            elif isinstance(event, CallbackQuery) and event.data in ("go_start", "check_subscription"):
+                is_bypass = True
 
-                if not is_bypass:
-                    # Check if subscribed
-                    subscribed = await self._is_subscribed(user.id)
-                    if not subscribed:
-                        name = user.first_name or "Foydalanuvchi"
-                        if isinstance(event, Message):
-                            await event.answer(
-                                CHANNEL_SUBSCRIBE_REQUIRED.format(name=name),
-                                reply_markup=channel_subscribe_kb(settings.channel_username),
-                                parse_mode="HTML",
-                            )
-                        elif isinstance(event, CallbackQuery):
-                            await event.answer(
-                                CHANNEL_SUBSCRIBE_FAIL.format(channel=settings.channel_username),
-                                show_alert=True,
-                            )
-                        return  # Halt processing, do not call handler
+            # Get current FSM state (e.g. if the user is in waiting_phone registration state)
+            state = data.get("state")
+            state_str = await state.get_state() if state else None
+            is_registering = state_str == "Registration:waiting_phone"
+
+            # If not in registration flow or bypass:
+            if not is_bypass and not is_registering:
+                # 1. Check if user is registered in database
+                is_registered = self.container.users.is_registered(user.id)
+                if not is_registered:
+                    # Unregistered user trying to click old buttons or send messages
+                    if isinstance(event, Message):
+                        await event.answer(REGISTER_FIRST, reply_markup=go_start_kb())
+                    elif isinstance(event, CallbackQuery):
+                        await event.answer(REGISTER_FIRST, show_alert=True)
+                    return  # Halt processing
+
+                # 2. Registered user: check channel subscription
+                subscribed = await self._is_subscribed(user.id)
+                if not subscribed:
+                    name = user.first_name or "Foydalanuvchi"
+                    if isinstance(event, Message):
+                        await event.answer(
+                            CHANNEL_SUBSCRIBE_REQUIRED.format(name=name),
+                            reply_markup=channel_subscribe_kb(settings.channel_username),
+                            parse_mode="HTML",
+                        )
+                    elif isinstance(event, CallbackQuery):
+                        await event.answer(
+                            CHANNEL_SUBSCRIBE_FAIL_ALERT.format(channel=settings.channel_username),
+                            show_alert=True,
+                        )
+                    return  # Halt processing
 
         return await handler(event, data)
