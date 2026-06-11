@@ -71,6 +71,12 @@ async def main() -> None:
     setup_logging()
     init_schema()
     container = build_container()
+
+    # Register subscription middleware
+    from app.core.middlewares import SubscriptionMiddleware
+    dp.message.outer_middleware(SubscriptionMiddleware(container))
+    dp.callback_query.outer_middleware(SubscriptionMiddleware(container))
+
     register_all(dp, container)
 
     # Fonda ishlovchi rejalashtirgichni ishga tushirish (daily backup + tips)

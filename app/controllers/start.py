@@ -164,6 +164,23 @@ def register(dp: Dispatcher, c: Container) -> None:
             except Exception as e:
                 logger.warning("Adminga xabar: %s", e)
 
+        # ── Kanalga obuna tekshiruvi (ro'yxatdan keyin) ──────
+        is_sub = await _is_subscribed(uid)
+        if not is_sub:
+            await message.answer(
+                "✅ <b>Ro'yxatdan muvaffaqiyatli o'tdingiz!</b>\n\n"
+                "Botdan foydalanishni boshlash uchun rasmiy kanalimizga obuna bo'lishingiz lozim 👇",
+                reply_markup=ReplyKeyboardRemove(),
+                parse_mode="HTML",
+            )
+            await asyncio.sleep(0.5)
+            await message.answer(
+                CHANNEL_SUBSCRIBE_REQUIRED.format(name=name),
+                reply_markup=channel_subscribe_kb(settings.channel_username),
+                parse_mode="HTML",
+            )
+            return
+
         await message.answer(
             "✅ <b>Ro'yxatdan muvaffaqiyatli o'tdingiz!</b>\n\n"
             "Endi botdan to'liq foydalanishingiz mumkin.",
@@ -171,15 +188,6 @@ def register(dp: Dispatcher, c: Container) -> None:
             parse_mode="HTML",
         )
         await asyncio.sleep(0.5)
-
-        # ── Kanalga obuna tekshiruvi (ro'yxatdan keyin) ──────
-        if not await _is_subscribed(uid):
-            await message.answer(
-                CHANNEL_SUBSCRIBE_REQUIRED.format(name=name),
-                reply_markup=channel_subscribe_kb(settings.channel_username),
-                parse_mode="HTML",
-            )
-            return
 
         # Obuna tasdiqlangan → menyuga o'tish
         if payload == "quiz":
@@ -210,6 +218,10 @@ def register(dp: Dispatcher, c: Container) -> None:
 
         if await _is_subscribed(uid):
             # Obuna tasdiqlandi ✅
+            import time
+            from app.core.middlewares import SubscriptionMiddleware
+            SubscriptionMiddleware.cache[uid] = (True, time.time() + SubscriptionMiddleware.cache_ttl)
+
             await call.message.edit_text(
                 CHANNEL_SUBSCRIBE_SUCCESS,
                 parse_mode="HTML",
@@ -223,6 +235,9 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
         else:
             # Hali obuna bo'lmagan ❌
+            from app.core.middlewares import SubscriptionMiddleware
+            SubscriptionMiddleware.cache.pop(uid, None)
+
             await call.answer(
                 CHANNEL_SUBSCRIBE_FAIL.format(channel=settings.channel_username),
                 show_alert=True,
