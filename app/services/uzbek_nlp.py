@@ -238,7 +238,7 @@ class UzbekNLPService:
             "dalbayob", "axmoq", "xarom", "harom", "yebsan", "sik", "sikaman", 
             "koting", "jallod", "chort", "tvar", "gandonlar", "kallangni", 
             "tahdid", "zo'rlayman", "ursang", "o'ldiraman", "yuzingni yirtaman", 
-            "sharmandangni chiqaraman", "gejga solaman", "urib o'ldiraman"
+            "sharmandangni chiqaraman", "gejga solaman", "urib o'ldiraman","skaman","seks","siks","sex"
         }
 
     def normalize_text(self, text: str) -> str:
