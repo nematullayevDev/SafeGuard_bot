@@ -47,8 +47,11 @@ def scan_result(r: ScanResult) -> str:
     label = _VERDICT_LABEL[r.verdict]
     advice_map = _URL_ADVICE if r.item_type.value == "link" else _FILE_ADVICE
     advice = advice_map[r.verdict]
+    
+    desc_str = f"\nℹ️ <b>Batafsil:</b>\n{r.description}\n" if r.description else ""
+    
     return (
-        f"{label}\n\n{icon} {r.value}\n\n📊 Tahlil ({r.total_engines} antivirus):\n"
+        f"{label}\n\n{icon} {r.value}\n{desc_str}\n📊 Tahlil ({r.total_engines} antivirus):\n"
         f"  🔴 Xavfli:      {r.malicious}\n"
         f"  🟡 Shubhali:    {r.suspicious}\n"
         f"  🟢 Xavfsiz:     {r.harmless}\n"

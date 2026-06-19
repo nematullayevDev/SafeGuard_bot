@@ -108,15 +108,104 @@ def stem_uzbek_word(word: str) -> str:
 
 
 def simplify_word(word: str) -> str:
-    """Simplifies spelling variations: lowers, replaces x->h, o'->o, g'->g, strips symbols."""
+    """
+    Simplifies spelling variations and normalizes leet-speak/repeats:
+    - Replaces common leet-speak characters (e.g. @->a, 0->o).
+    - Collapses consecutive repeated characters.
+    - Lowers case, normalizes O'/G' apostrophes, and replaces x->h.
+    - Strips non-alphanumeric symbols.
+    """
     w = word.lower()
-    # Normalize O' and G' apostrophes
     w = re.sub(r"[‘`ʻ’']", "", w)
-    # Simplify common consonant substitutions
+    w = normalize_leet(w)
+    w = collapse_repeats(w)
     w = w.replace("x", "h")
-    # Clean any remaining non-alphanumeric characters
     w = re.sub(r"[^a-z0-9]", "", w)
     return w
+
+
+def simplify_text_preserve_spaces(text: str) -> str:
+    """Simplifies text for phrase matching while preserving spaces."""
+    w = text.lower()
+    w = w.replace("-", " ")
+    w = re.sub(r"[‘`ʻ’']", "", w)
+    w = normalize_leet(w)
+    w = collapse_repeats(w)
+    w = w.replace("x", "h")
+    # Preserve alphanumeric, spaces, and leet characters
+    w = re.sub(r"[^a-z0-9\s]", "", w)
+    w = re.sub(r"\s+", " ", w)
+    return w.strip()
+
+
+def collapse_repeats(word: str) -> str:
+    """Collapses consecutive repeated characters to a single character (e.g., 'dabbba' -> 'daba')."""
+    if not word:
+        return ""
+    result = [word[0]]
+    for char in word[1:]:
+        if char != result[-1]:
+            result.append(char)
+    return "".join(result)
+
+
+LEET_MAP = {
+    '0': 'o', '1': 'i', '!': 'i', '@': 'a', '4': 'a', '3': 'e', '$': 's', '7': 't', '8': 'b'
+}
+
+
+def normalize_leet(word: str) -> str:
+    """Replaces common leet-speak character substitutions with standard letters."""
+    return "".join(LEET_MAP.get(c, c) for c in word.lower())
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """Computes the Levenshtein distance between two strings."""
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+    if len(s2) == 0:
+        return len(s1)
+    
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+        
+    return previous_row[-1]
+
+
+def is_fuzzy_match(word: str, keyword: str) -> bool:
+    """
+    Determines if a word fuzzy-matches a keyword under Uzbek moderation rules:
+    - Normalizes leet-speak and collapses repeated characters.
+    - If keyword is short (< 5 chars), requires exact match.
+    - If keyword is 5 or 6 chars, allows 1 edit (Levenshtein distance <= 1).
+    - If keyword is >= 7 chars, allows up to 2 edits (Levenshtein distance <= 2).
+    - Also performs substring matching for keywords >= 4 chars.
+    """
+    w = collapse_repeats(normalize_leet(word))
+    kw = collapse_repeats(normalize_leet(keyword))
+    
+    if w == kw:
+        return True
+        
+    if len(kw) >= 4 and kw in w:
+        return True
+        
+    n = len(kw)
+    if n < 5:
+        return False
+        
+    dist = levenshtein_distance(w, kw)
+    if n >= 7:
+        return dist <= 2
+    else:  # n is 5 or 6
+        return dist <= 1
 
 
 class UzbekNLPService:
@@ -171,8 +260,8 @@ class UzbekNLPService:
         """Performs advanced local rule-based stemming and spelling variation matching."""
         normalized = self.normalize_text(text)
         
-        # Clean text for whole phrase matching
-        clean_text = re.sub(r"[^a-z0-9\s']", " ", normalized)
+        # Clean text but preserve common leet symbols so they are tokenized as part of words
+        clean_text = re.sub(r"[.,?/\\()\[\]{}:;\-_+=*&^%#\"~`]", " ", normalized)
         clean_text = re.sub(r"\s+", " ", clean_text).strip()
         
         # Tokenize and stem each word
@@ -180,46 +269,47 @@ class UzbekNLPService:
         stemmed_words = [stem_uzbek_word(w) for w in raw_words]
         simplified_stemmed_words = [simplify_word(w) for w in stemmed_words]
         
-        # Build stemmed whole text for phrase matching
-        stemmed_text = " ".join(stemmed_words)
-        simplified_stemmed_text = " ".join(simplified_stemmed_words)
-        
         # 1. Extremism Check
         for keyword in self._extremism_keywords:
-            simplified_kw = simplify_word(keyword)
-            # Match either as single word or as phrase in stemmed/simplified text
             if " " in keyword:
-                if simplified_kw in simplified_stemmed_text:
+                simplified_kw_phrase = simplify_text_preserve_spaces(keyword)
+                simplified_text_phrase = simplify_text_preserve_spaces(text)
+                if simplified_kw_phrase in simplified_text_phrase:
                     return True, "extremism", f"Diniy ekstremistik yoki radikal g'oyalar targ'iboti aniqlandi (Tahlil: '{keyword}')"
             else:
-                if simplified_kw in simplified_stemmed_words:
-                    idx = simplified_stemmed_words.index(simplified_kw)
-                    original_match = raw_words[idx]
-                    return True, "extremism", f"Diniy ekstremistik yoki radikal g'oyalar targ'iboti aniqlandi (Kalit so'z: '{original_match}')"
+                simplified_kw = simplify_word(keyword)
+                for idx, w in enumerate(simplified_stemmed_words):
+                    if is_fuzzy_match(w, simplified_kw):
+                        original_match = raw_words[idx]
+                        return True, "extremism", f"Diniy ekstremistik yoki radikal g'oyalar targ'iboti aniqlandi (Kalit so'z: '{original_match}')"
 
         # 2. Drugs Check
         for keyword in self._drugs_keywords:
-            simplified_kw = simplify_word(keyword)
             if " " in keyword:
-                if simplified_kw in simplified_stemmed_text:
+                simplified_kw_phrase = simplify_text_preserve_spaces(keyword)
+                simplified_text_phrase = simplify_text_preserve_spaces(text)
+                if simplified_kw_phrase in simplified_text_phrase:
                     return True, "drugs", f"Giyohvand moddalar yashirin savdosi yoki targ'iboti aniqlandi (Tahlil: '{keyword}')"
             else:
-                if simplified_kw in simplified_stemmed_words:
-                    idx = simplified_stemmed_words.index(simplified_kw)
-                    original_match = raw_words[idx]
-                    return True, "drugs", f"Giyohvand moddalar yashirin savdosi yoki targ'iboti aniqlandi (Jargon: '{original_match}')"
+                simplified_kw = simplify_word(keyword)
+                for idx, w in enumerate(simplified_stemmed_words):
+                    if is_fuzzy_match(w, simplified_kw):
+                        original_match = raw_words[idx]
+                        return True, "drugs", f"Giyohvand moddalar yashirin savdosi yoki targ'iboti aniqlandi (Jargon: '{original_match}')"
 
         # 3. Cyberbullying Check
         for keyword in self._bullying_keywords:
-            simplified_kw = simplify_word(keyword)
             if " " in keyword:
-                if simplified_kw in simplified_stemmed_text:
+                simplified_kw_phrase = simplify_text_preserve_spaces(keyword)
+                simplified_text_phrase = simplify_text_preserve_spaces(text)
+                if simplified_kw_phrase in simplified_text_phrase:
                     return True, "bullying", f"Kiberbulling, tahdid yoki haqorat elementlari aniqlandi (Tahlil: '{keyword}')"
             else:
-                if simplified_kw in simplified_stemmed_words:
-                    idx = simplified_stemmed_words.index(simplified_kw)
-                    original_match = raw_words[idx]
-                    return True, "bullying", f"Kiberbulling, tahdid yoki og'ir haqorat elementlari aniqlandi (So'z: '{original_match}')"
+                simplified_kw = simplify_word(keyword)
+                for idx, w in enumerate(simplified_stemmed_words):
+                    if is_fuzzy_match(w, simplified_kw):
+                        original_match = raw_words[idx]
+                        return True, "bullying", f"Kiberbulling, tahdid yoki og'ir haqorat elementlari aniqlandi (So'z: '{original_match}')"
 
         return False, None, None
 

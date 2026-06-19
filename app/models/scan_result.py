@@ -13,6 +13,7 @@ class ScanResult:
     harmless: int = 0
     undetected: int = 0
     error: str = ""
+    description: str = ""
 
     @property
     def total_engines(self) -> int:

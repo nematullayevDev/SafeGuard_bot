@@ -12,9 +12,19 @@ def extract_links(message: Message) -> list[str]:
             links.append(text[e.offset:e.offset + e.length])
         elif e.type == "text_link" and e.url:
             links.append(e.url)
+        elif e.type == "mention":
+            mention_text = text[e.offset:e.offset + e.length]
+            if mention_text.lower().endswith("bot"):
+                username = mention_text.lstrip("@")
+                links.append(f"https://t.me/{username}")
 
     for word in text.split():
         if word.startswith(("http://", "https://")) and word not in links:
             links.append(word)
+        elif word.startswith("@") and word.lower().endswith("bot"):
+            username = word.lstrip("@").rstrip(".,!?()[]{}")
+            bot_link = f"https://t.me/{username}"
+            if bot_link not in links:
+                links.append(bot_link)
 
     return links

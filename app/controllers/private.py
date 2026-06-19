@@ -61,7 +61,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             await wait.delete()
         except Exception:
             pass
-        await message.answer(response, reply_markup=main_menu(is_owner(message)))
+        await message.answer(response, reply_markup=main_menu(is_owner(message)), parse_mode="HTML")
 
     async def handle_message(message: Message):
         if not await ensure_registered(message, c):
@@ -77,21 +77,30 @@ def register(dp: Dispatcher, c: Container) -> None:
         if text.startswith("/"):
             return
 
-        if text.startswith(("http://", "https://")):
+        # Check if it is a URL or a Telegram handle/bot link
+        is_tg_handle = text.startswith("@") or "t.me/" in text or "telegram.me/" in text
+        if text.startswith(("http://", "https://")) or is_tg_handle:
             if c.rate_limiter.hit(uid):
                 await message.answer(_rate_limit_text())
                 return
 
-            if c.blacklist.exists(text):
+            scan_target = text
+            if text.startswith("@"):
+                scan_target = f"https://t.me/{text.lstrip('@')}"
+            elif ("t.me/" in text or "telegram.me/" in text) and not text.startswith(("http://", "https://")):
+                scan_target = f"https://{text}"
+
+            if c.blacklist.exists(scan_target):
                 await message.answer(
                     "🔴 XAVFLI — Qora ro'yxatda!\n\n❌ Bu link oldin xavfli topilgan!",
                     reply_markup=main_menu(is_admin_user),
+                    parse_mode="HTML",
                 )
                 return
 
             wait = await message.answer("⏳ Tekshirilmoqda...")
             try:
-                result = await c.scanner.scan_url(uid, text)
+                result = await c.scanner.scan_url(uid, scan_target)
                 response = formatters.scan_result(result)
             except Exception as e:
                 logger.error("Shaxsiy link xato: %s", e)
@@ -100,7 +109,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                 await wait.delete()
             except Exception:
                 pass
-            await message.answer(response, reply_markup=main_menu(is_admin_user))
+            await message.answer(response, reply_markup=main_menu(is_admin_user), parse_mode="HTML")
             return
 
         # Matnli xabar bo'lsa, SafeGuard AI va NLP tahlilini amalga oshiramiz
