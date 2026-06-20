@@ -263,6 +263,98 @@ def register(dp: Dispatcher, c: Container) -> None:
             logger.error("Guruh fayl xatolik: %s", e)
             await _safe_delete(wait)
 
+    async def check_content_violations(message: Message, text: str, filters: dict, sender_id: int, sender: str, mention: str) -> bool:
+        if not text:
+            return False
+
+        # 1. Spam check
+        if filters.get("filter_nlp", True):
+            if c.spam.is_spam(text):
+                await _safe_delete(message)
+                await bot.send_message(
+                    message.chat.id,
+                    f"🚫 <b>SPAM ANIQLANDI VA BLOKLANDI!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 Yuboruvchi: {mention}\n"
+                    f"📝 Xabar tarkibida spam belgilari topildi.\n\n"
+                    f"<i>Tizim avtomatik ravishda xabarni o'chirdi.</i>",
+                    parse_mode="HTML",
+                )
+                await _save_forensics_case(message, "bullying", "Spam kalit so'zlar aniqlandi", c)
+                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Spam xabar yuborish")
+                return True
+
+        # 2. NLP check
+        if filters.get("filter_nlp", True):
+            nlp_res = await c.nlp.analyze_text(text)
+            if nlp_res["is_violation"]:
+                await _safe_delete(message)
+                category = nlp_res["category"] or "other"
+                reason = nlp_res["reason"]
+                await bot.send_message(
+                    message.chat.id,
+                    formatters.nlp_violation_warning(category, reason, mention),
+                    parse_mode="HTML"
+                )
+                await _save_forensics_case(message, category, reason, c)
+                reason_map = {
+                    "extremism": "Diniy extremism va radikalizm targ'iboti",
+                    "drugs": "Giyohvand moddalar yoki preparatlar yashirin savdosi/targ'iboti",
+                    "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi"
+                }
+                moderator_reason = reason_map.get(category, f"Siyosat buzilishi: {reason}")
+                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, moderator_reason)
+                return True
+
+        # 3. Link check
+        links = extract_links(message)
+        if links and filters.get("filter_links", True):
+            wait = await message.reply(
+                "⏳ <b>Link tekshirilmoqda...</b>\n🛡 Ochishga shoshilmang!", parse_mode="HTML"
+            )
+            any_bad = False
+            for url in links:
+                try:
+                    scan_target = url
+                    if url.startswith("@"):
+                        scan_target = f"https://t.me/{url.lstrip('@')}"
+                    elif ("t.me/" in url or "telegram.me/" in url) and not url.startswith(("http://", "https://")):
+                        scan_target = f"https://{url}"
+
+                    if c.blacklist.exists(scan_target):
+                        any_bad = True
+                        await _safe_delete(message)
+                        await _safe_delete(wait)
+                        await bot.send_message(
+                            message.chat.id, formatters.blacklisted_link_warning(mention),
+                            parse_mode="HTML",
+                        )
+                        await _save_forensics_case(message, "link", f"Qora ro'yxatdagi xavfli link yubordi: {url}", c)
+                        await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Qora ro'yxatdagi link")
+                        break
+
+                    result = await c.scanner.scan_url(sender_id, scan_target)
+                    if result.verdict.is_bad:
+                        any_bad = True
+                        await _safe_delete(message)
+                        await _safe_delete(wait)
+                        await bot.send_message(
+                            message.chat.id, formatters.dangerous_link_warning(result, mention),
+                            parse_mode="HTML",
+                        )
+                        await _save_forensics_case(message, "link", f"Antivirus xavfli deb topgan link yubordi: {url} ({result.malicious} ta tahdid)", c)
+                        await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Xavfli link yuborish")
+                        break
+                except Exception as e:
+                    logger.error("Guruh link xatolik: %s", e)
+
+            if any_bad:
+                return True
+            else:
+                await _safe_delete(wait)
+
+        return False
+
     async def handle_group_message(message: Message):
         chat_id = message.chat.id
         await _sync_group_info(message)
@@ -275,112 +367,12 @@ def register(dp: Dispatcher, c: Container) -> None:
         sender = message.from_user.first_name if message.from_user else "Noma'lum"
         sender_id = message.from_user.id if message.from_user else 0
         mention = formatters.mention(sender_id, sender)
-
-        # Fetch group settings
         filters = c.user_settings.get_group_settings(chat_id)
 
-        # 0. Rate limit tekshiruvi — bir foydalanuvchi juda ko'p xabar yuborsa
         if c.rate_limiter.hit(sender_id):
-            return  # Shunchaki o'tkazib yubor, spam qiluvchiga xabar yozma
-
-        # 1. Spam kalit so'zlari tekshiruvi (SpamDetector)
-        if filters.get("filter_nlp", True):
-            if c.spam.is_spam(text):
-                await _safe_delete(message)
-                await bot.send_message(
-                    chat_id,
-                    f"🚫 <b>SPAM ANIQLANDI VA BLOKLANDI!</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━━━\n"
-                    f"👤 Yuboruvchi: {mention}\n"
-                    f"📝 Xabar tarkibida spam belgilari topildi.\n\n"
-                    f"<i>Tizim avtomatik ravishda xabarni o'chirdi.</i>",
-                    parse_mode="HTML",
-                )
-                await _save_forensics_case(
-                    message, "bullying",
-                    "Spam kalit so'zlar aniqlandi", c,
-                )
-                await c.moderator.warn_or_ban(
-                    chat_id, sender_id, sender, "Spam xabar yuborish"
-                )
-                return
-
-        # 2. AI va NLP orqali matnli qonunbuzarliklarni tekshirish (Ekstremizm, Narkotik, Bulling)
-        if filters.get("filter_nlp", True):
-            nlp_res = await c.nlp.analyze_text(text)
-            if nlp_res["is_violation"]:
-                # Qonunbuzarlik topildi — xabarni o'chirish va jazo qo'llash
-                await _safe_delete(message)
-                category = nlp_res["category"] or "other"
-                reason = nlp_res["reason"]
-
-                # Guruhga tahlil kartasini yuborish
-                await bot.send_message(
-                    chat_id,
-                    formatters.nlp_violation_warning(category, reason, mention),
-                    parse_mode="HTML"
-                )
-
-                # Forensika arxivida saqlash
-                await _save_forensics_case(message, category, reason, c)
-
-                # Moderatsiya: warn yoki ban
-                reason_map = {
-                    "extremism": "Diniy extremism va radikalizm targ'iboti",
-                    "drugs": "Giyohvand moddalar yoki preparatlar yashirin savdosi/targ'iboti",
-                    "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi"
-                }
-                moderator_reason = reason_map.get(category, f"Siyosat buzilishi: {reason}")
-                await c.moderator.warn_or_ban(chat_id, sender_id, sender, moderator_reason)
-                return
-
-        # 3. Xabar tarkibidagi linklarni tekshirish
-        links = extract_links(message)
-        if not links:
             return
 
-        if not filters.get("filter_links", True):
-            return
-
-        wait = await message.reply(
-            "⏳ <b>Link tekshirilmoqda...</b>\n🛡 Ochishga shoshilmang!", parse_mode="HTML"
-        )
-        any_bad = False
-        for url in links:
-            try:
-                if c.blacklist.exists(url):
-                    any_bad = True
-                    await _safe_delete(message)
-                    await _safe_delete(wait)
-                    await bot.send_message(
-                        chat_id, formatters.blacklisted_link_warning(mention),
-                        parse_mode="HTML",
-                    )
-                    await _save_forensics_case(message, "link", f"Qora ro'yxatdagi xavfli link yubordi: {url}", c)
-                    await c.moderator.warn_or_ban(
-                        chat_id, sender_id, sender, "Qora ro'yxatdagi link"
-                    )
-                    break
-
-                result = await c.scanner.scan_url(sender_id, url)
-                if result.verdict.is_bad:
-                    any_bad = True
-                    await _safe_delete(message)
-                    await _safe_delete(wait)
-                    await bot.send_message(
-                        chat_id, formatters.dangerous_link_warning(result, mention),
-                        parse_mode="HTML",
-                    )
-                    await _save_forensics_case(message, "link", f"Antivirus xavfli deb topgan link yubordi: {url} ({result.malicious} ta tahdid)", c)
-                    await c.moderator.warn_or_ban(
-                        chat_id, sender_id, sender, "Xavfli link yuborish"
-                    )
-                    break
-            except Exception as e:
-                logger.error("Guruh link xatolik: %s", e)
-
-        if not any_bad:
-            await _safe_delete(wait)
+        await check_content_violations(message, text, filters, sender_id, sender, mention)
 
     async def handle_group_photo(message: Message):
         chat_id = message.chat.id
@@ -396,6 +388,14 @@ def register(dp: Dispatcher, c: Container) -> None:
         sender_id = message.from_user.id if message.from_user else 0
         mention = formatters.mention(sender_id, sender)
 
+        # 1. Scan caption for violations first
+        caption = message.caption or ""
+        if caption.strip():
+            violation_handled = await check_content_violations(message, caption, filters, sender_id, sender, mention)
+            if violation_handled:
+                return
+
+        # 2. Proceed with QR code scanner in photo
         photo = message.photo[-1]
         try:
             import io

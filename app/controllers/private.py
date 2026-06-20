@@ -176,7 +176,11 @@ def register(dp: Dispatcher, c: Container) -> None:
             return
 
         photo = message.photo[-1]
+        caption = message.caption or ""
+        
         wait = await message.answer("⏳ Rasm yuklab olinmoqda va QR-kod tahlil qilinmoqda...")
+        
+        qr_data = None
         try:
             import io
             from app.services import decode_qr
@@ -186,35 +190,78 @@ def register(dp: Dispatcher, c: Container) -> None:
             image_bytes = downloaded.getvalue()
             
             qr_data = decode_qr(image_bytes)
-            if not qr_data:
-                await wait.edit_text("❌ Ushbu rasmdan hech qanday QR-kod aniqlanmadi.")
-                return
-            
-            await wait.edit_text(f"🔍 QR-kod topildi!\n\n📥 <b>Tarkibi:</b> <code>{qr_data}</code>\n\n⏳ Xavfsizlik tekshiruvi ketmoqda...", parse_mode="HTML")
-            
+        except Exception as e:
+            logger.error("Shaxsiy rasm/QR yuklab olish xato: %s", e)
+
+        # Process QR data if found
+        qr_response = ""
+        if qr_data:
+            qr_response = f"🔍 <b>QR-kod topildi!</b>\n📥 <b>Tarkibi:</b> <code>{qr_data}</code>\n\n"
             if qr_data.startswith(("http://", "https://")):
                 if c.blacklist.exists(qr_data):
-                    await wait.edit_text(
-                        f"🔍 QR-kod tarkibi: <code>{qr_data}</code>\n\n"
-                        "🔴 XAVFLI — Qora ro'yxatda!\n\n❌ Bu link oldin xavfli topilgan!",
-                        parse_mode="HTML"
+                    qr_response += (
+                        "🔴 XAVFLI — Qora ro'yxatda!\n\n"
+                        "❌ Bu link oldin xavfli topilgan!"
                     )
-                    return
-                
-                result = await c.scanner.scan_url(uid, qr_data)
-                response = formatters.scan_result(result)
-                await wait.edit_text(f"🔍 QR-kod havolasi skaner qilindi:\n\n{response}", parse_mode="HTML")
+                else:
+                    result = await c.scanner.scan_url(uid, qr_data)
+                    qr_response += formatters.scan_result(result)
             else:
                 nlp_res = await c.nlp.analyze_text(qr_data)
-                response = formatters.nlp_forensic_report(nlp_res, qr_data)
-                await wait.edit_text(response, parse_mode="HTML")
-                
-        except Exception as e:
-            logger.error("Shaxsiy rasm/QR xato: %s", e)
+                qr_response += formatters.nlp_forensic_report(nlp_res, qr_data)
+        else:
+            qr_response = "❌ Ushbu rasmdan hech qanday QR-kod aniqlanmadi."
+
+        # Process caption if present
+        caption_response = ""
+        if caption.strip():
+            from app.services import extract_links
+            caption_links = extract_links(message)
+            
+            caption_scan_results = []
+            
+            # 1. Scan links/handles in caption
+            for url in caption_links:
+                scan_target = url
+                if url.startswith("@"):
+                    scan_target = f"https://t.me/{url.lstrip('@')}"
+                elif ("t.me/" in url or "telegram.me/" in url) and not url.startswith(("http://", "https://")):
+                    scan_target = f"https://{url}"
+                    
+                if c.blacklist.exists(scan_target):
+                    caption_scan_results.append(
+                        f"🔴 <b>XAVFLI LINK (Qora ro'yxatda):</b> <code>{url}</code>\n"
+                        f"❌ Bu havola oldin xavfli topilgan!"
+                    )
+                else:
+                    res = await c.scanner.scan_url(uid, scan_target)
+                    caption_scan_results.append(formatters.scan_result(res))
+            
+            # 2. Run NLP check on caption text
             try:
-                await wait.edit_text(f"❌ Xatolik yuz berdi: {e}")
-            except Exception:
-                await message.answer(f"❌ Xatolik yuz berdi: {e}")
+                nlp_res = await c.nlp.analyze_text(caption)
+                if nlp_res["is_violation"]:
+                    caption_scan_results.append(formatters.nlp_forensic_report(nlp_res, caption))
+                elif not caption_links:
+                    # If there are no links, and NLP is safe, show standard safe forensic report
+                    caption_scan_results.append(formatters.nlp_forensic_report(nlp_res, caption))
+            except Exception as e:
+                logger.error("Caption NLP tahlil xato: %s", e)
+                
+            if caption_scan_results:
+                caption_response = "\n\n📝 <b>Rasm ostidagi matn (caption) tahlili:</b>\n\n" + "\n\n".join(caption_scan_results)
+
+        # Send final combined response
+        final_response = qr_response
+        if caption_response:
+            final_response += caption_response
+            
+        try:
+            await wait.delete()
+        except Exception:
+            pass
+            
+        await message.answer(final_response, reply_markup=main_menu(is_admin_user), parse_mode="HTML")
 
 
     dp.message.register(handle_document, F.document, F.chat.type == "private")

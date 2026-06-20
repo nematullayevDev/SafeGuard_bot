@@ -1,6 +1,7 @@
 import logging
 import re
 from typing import Optional
+from urllib.parse import urlparse
 
 from app.models import HistoryEntry, ItemType, ScanResult, ScanVerdict
 from app.repositories import BlacklistRepository, HistoryRepository
@@ -77,10 +78,89 @@ PHISHING_KEYWORDS = [
     # Financial keywords
     "bank", "bnk", "click", "payme", "pay", "card", "humo", "uzcard", "anor", "nbu", "milliy", 
     "kapital", "agro", "xalq", "tbc", "hamkor", "sqb", "uzum", "oson", "paynet", "upay", 
-    "apelsin", "davr", "infin", "aloqa", "savdo",
+    "apelsin", "davr", "infin", "aloqa", "savdo", "soliq",
     # Bait keywords
-    "mukofot", "yutuq", "aksiy", "aksiya", "sovg", "priz", "fond"
+    "mukofot", "yutuq", "aksiy", "aksiya", "sovg", "priz", "fond", "keshbek", "cashback", "daromad", "pul", "yordam", "komissiy", "komissiya", "kompensatsiy", "kompensatsiya", "premy", "bonus"
 ]
+
+OFFICIAL_SAFE_DOMAINS = {
+    "click.uz", "payme.uz", "anorbank.uz", "nbu.uz", "kapitalbank.uz", 
+    "kapital24.uz", "uzcard.uz", "humocard.uz", "soliq.uz", "gov.uz", 
+    "my.gov.uz", "uzum.uz", "uzumbank.uz", "t.me", "telegram.org", 
+    "telegram.dog", "wikipedia.org", "google.com", "yandex.ru", "github.com"
+}
+
+BRAND_KEYWORDS = ["click", "payme", "anor", "nbu", "kapital", "uzcard", "humo", "soliq", "uzum", "apelsin"]
+BAIT_KEYWORDS = ["keshbek", "cashback", "promo", "bonus", "yutuq", "aksiy", "aksiya", "gift", "cabinet", "kabinet", "kirish", "login", "verify", "daromad", "pul", "yordam"]
+
+
+def get_registered_domain(url: str) -> str:
+    try:
+        parsed = urlparse(url)
+        host = parsed.netloc or parsed.path
+        if ":" in host:
+            host = host.split(":")[0]
+        host = host.lower()
+        if host.startswith("www."):
+            host = host[4:]
+        return host
+    except Exception:
+        return ""
+
+
+def is_whitelisted_domain(host: str) -> bool:
+    if host in OFFICIAL_SAFE_DOMAINS:
+        return True
+    for d in OFFICIAL_SAFE_DOMAINS:
+        if host.endswith("." + d):
+            return True
+    return False
+
+
+def check_phishing_link(url: str) -> Optional[ScanResult]:
+    """
+    Checks if a URL mimics an official brand and flags it as a brand-spoofing phishing link.
+    Returns ScanResult if it is a phishing link, otherwise None.
+    """
+    host = get_registered_domain(url)
+    if not host or host in ("t.me", "telegram.me", "telegram.dog"):
+        return None
+        
+    if is_whitelisted_domain(host):
+        return None  # Whitelisted/Safe
+        
+    simplified_host = re.sub(r'[^a-z]', '', host)
+    
+    # Check if host contains both a brand and a bait keyword
+    matched_brand = None
+    matched_bait = None
+    
+    for brand in BRAND_KEYWORDS:
+        if brand in simplified_host:
+            matched_brand = brand
+            break
+            
+    for bait in BAIT_KEYWORDS:
+        if bait in simplified_host:
+            matched_bait = bait
+            break
+            
+    if matched_brand and matched_bait:
+        return ScanResult(
+            item_type=ItemType.LINK,
+            value=url,
+            verdict=ScanVerdict.DANGEROUS,
+            malicious=70,
+            description=(
+                f"🚨 <b>FISHING HAVOLASI ANIQLANDI!</b>\n\n"
+                f"Ushbu havola rasmiy saytga tegishli emas (domen: <code>{host}</code>), lekin u "
+                f"mashhur brend (<i>'{matched_brand}'</i>) va shubhali kalit so'zni (<i>'{matched_bait}'</i>) "
+                f"o'zida birlashtirgan.\n"
+                f"⚠️ <b>DIQQAT:</b> Shaxsiy yoki plastik karta ma'lumotlaringizni ushbu saytga kiritmang!"
+            )
+        )
+        
+    return None
 
 
 def check_phishing_bot(value: str) -> Optional[ScanResult]:
@@ -167,8 +247,8 @@ class ScanService:
 
     async def scan_url(self, user_id: int, url: str) -> ScanResult:
         try:
-            # 1. Run phishing bot checks first
-            phish_result = check_phishing_bot(url)
+            # 1. Run phishing bot and link checks first
+            phish_result = check_phishing_bot(url) or check_phishing_link(url)
             if phish_result:
                 result = phish_result
             else:
