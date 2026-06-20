@@ -61,7 +61,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             await wait.delete()
         except Exception:
             pass
-        await message.answer(response, reply_markup=main_menu(is_owner(message)), parse_mode="HTML")
+        await message.answer(response, parse_mode="HTML")
 
     async def handle_message(message: Message):
         if not await ensure_registered(message, c):
@@ -93,7 +93,6 @@ def register(dp: Dispatcher, c: Container) -> None:
             if c.blacklist.exists(scan_target):
                 await message.answer(
                     "🔴 XAVFLI — Qora ro'yxatda!\n\n❌ Bu link oldin xavfli topilgan!",
-                    reply_markup=main_menu(is_admin_user),
                     parse_mode="HTML",
                 )
                 return
@@ -109,7 +108,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                 await wait.delete()
             except Exception:
                 pass
-            await message.answer(response, reply_markup=main_menu(is_admin_user), parse_mode="HTML")
+            await message.answer(response, parse_mode="HTML")
             return
 
         # Matnli xabar bo'lsa, SafeGuard AI va NLP tahlilini amalga oshiramiz
@@ -123,7 +122,6 @@ def register(dp: Dispatcher, c: Container) -> None:
                     pass
                 await message.answer(
                     formatters.nlp_forensic_report(nlp_res, text),
-                    reply_markup=main_menu(is_admin_user),
                     parse_mode="HTML"
                 )
                 return
@@ -140,7 +138,6 @@ def register(dp: Dispatcher, c: Container) -> None:
             await message.answer(
                 f"🚫 SPAM ANIQLANDI!\n\n📝 {text[:100]}\n\n"
                 "⚠️ Bu xabar fishing belgilariga ega!",
-                reply_markup=main_menu(is_admin_user),
             )
             return
 
@@ -153,7 +150,6 @@ def register(dp: Dispatcher, c: Container) -> None:
             }
             await message.answer(
                 formatters.nlp_forensic_report(safe_res, text),
-                reply_markup=main_menu(is_admin_user),
                 parse_mode="HTML"
             )
             return
@@ -261,7 +257,7 @@ def register(dp: Dispatcher, c: Container) -> None:
         except Exception:
             pass
             
-        await message.answer(final_response, reply_markup=main_menu(is_admin_user), parse_mode="HTML")
+        await message.answer(final_response, parse_mode="HTML")
 
 
     dp.message.register(handle_document, F.document, F.chat.type == "private")

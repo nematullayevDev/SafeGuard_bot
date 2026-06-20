@@ -200,11 +200,24 @@ def groups_user_list(active: Sequence[Group]) -> str:
 
 def blacklist_view(rows: Sequence[tuple[str, str]], count: int) -> str:
     if not rows:
-        return "📋 Qora ro'yxat hozircha bo'sh."
-    items = "\n".join(
-        f"• {v[:50]}{'...' if len(v) > 50 else ''}  ({added})" for v, added in rows
-    )
-    return f"📋 Qora ro'yxat ({count} ta):\n\n{items}"
+        return "📋 <b>Qora ro'yxat hozircha bo'sh.</b>"
+        
+    lines = [
+        "📋 <b>SafeGuard — Qora ro'yxat</b>",
+        f"🛡️ Hozirda jami: <b>{count}</b> ta xavfli havola aniqlangan.",
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    ]
+    for idx, (val, added) in enumerate(rows, 1):
+        short_val = val[:45] + "..." if len(val) > 45 else val
+        lines.append(f"<b>{idx}.</b> 🚫 <code>{short_val}</code>")
+        lines.append(f"   📅 <i>{added}</i>")
+        lines.append("")  # Blank line to separate entries beautifully
+        
+    if lines[-1] == "":
+        lines.pop()
+        
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    return "\n".join(lines)
 
 
 def banned_sites_page(platform_title: str, sites: Sequence[BannedSite],

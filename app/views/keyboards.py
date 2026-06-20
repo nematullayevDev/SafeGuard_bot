@@ -101,12 +101,14 @@ def spam_filter_menu(is_on: bool) -> InlineKeyboardMarkup:
     ])
 
 
-def blacklist_menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+def blacklist_menu(is_admin_user: bool = False) -> InlineKeyboardMarkup:
+    rows = [
         [InlineKeyboardButton(text="📋 Tekshirilgan linklar", callback_data="bl_show")],
-        [InlineKeyboardButton(text="🗑 Tozalash (admin)", callback_data="bl_clear")],
-        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
-    ])
+    ]
+    if is_admin_user:
+        rows.append([InlineKeyboardButton(text="🗑 Tozalash (admin)", callback_data="bl_clear")])
+    rows.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _platform_grid(prefix: str, back_to: str) -> InlineKeyboardMarkup:

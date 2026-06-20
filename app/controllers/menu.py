@@ -181,8 +181,9 @@ def register(dp: Dispatcher, c: Container) -> None:
     async def blacklist(call: CallbackQuery):
         _, count = c.blacklist.recent()
         await call.message.edit_text(
-            f"📋 Qora Ro'yxat\n\nHozirda {count} ta yozuv bor.",
-            reply_markup=blacklist_menu(),
+            f"📋 <b>Qora Ro'yxat</b>\n\nHozirda <b>{count}</b> ta yozuv bor.",
+            reply_markup=blacklist_menu(is_owner(call)),
+            parse_mode="HTML",
         )
         await call.answer()
 
@@ -190,7 +191,8 @@ def register(dp: Dispatcher, c: Container) -> None:
         rows, count = c.blacklist.recent()
         await call.message.edit_text(
             formatters.blacklist_view(rows, count),
-            reply_markup=blacklist_menu(),
+            reply_markup=blacklist_menu(is_owner(call)),
+            parse_mode="HTML",
         )
         await call.answer()
 
@@ -198,7 +200,7 @@ def register(dp: Dispatcher, c: Container) -> None:
         if await deny_if_not_owner(call):
             return
         c.blacklist.clear()
-        await call.message.edit_text("🗑 Qora ro'yxat tozalandi!", reply_markup=blacklist_menu())
+        await call.message.edit_text("🗑 Qora ro'yxat tozalandi!", reply_markup=blacklist_menu(is_owner(call)), parse_mode="HTML")
         await call.answer()
 
     # ─── History ─────────────────────────────
