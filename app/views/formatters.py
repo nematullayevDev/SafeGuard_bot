@@ -249,33 +249,34 @@ def banned_sites_empty(platform_title: str, note: str) -> str:
 
 def nlp_violation_warning(category: str, reason: str, sender_mention: str) -> str:
     cat_label = {
-        "extremism": "🧠 DINIY EKSTREMIZM VA RADIKALIZM",
-        "drugs": "💊 GIYOHVAND MODDALAR SAVDOSI TARG'IBOTI",
-        "bullying": "👤 KIBERBULLING VA HAQORAT TAHDIRI"
-    }.get(category, "⚠️ TAXDIDLI MATN")
+        "extremism": "🧠 Diniy Ekstremizm va Radikalizm (O'zR JK 244-1)",
+        "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
+        "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)",
+        "cybercrime": "💻 Firibgarlik va Kiber-jinoyat (O'zR JK 168)"
+    }.get(category, "⚠️ Taqiqlangan matn")
     
     emoji = {
-        "extremism": "🚨🔴",
-        "drugs": "🚨💊",
-        "bullying": "🚨⚠️"
+        "extremism": "🚨",
+        "drugs": "🚨",
+        "bullying": "🚨",
+        "cybercrime": "🚨"
     }.get(category, "🚨")
 
     legal_note = {
-        "extremism": "⚖️ <b>Huquqiy javobgarlik:</b> O'zR JK 244-1-moddasiga ko'ra jamoat xavfsizligiga tahdid soluvchi materiallarni tarqatish <b>jinoiy javobgarlikka</b> sabab bo'ladi.",
-        "drugs": "⚖️ <b>Huquqiy javobgarlik:</b> O'zR JK 273-moddasiga ko'ra giyohvandlik moddalari savdosi va yashirin aylanmasi <b>og'ir jinoiy javobgarlikka</b> sabab bo'ladi.",
-        "bullying": "⚖️ <b>Huquqiy javobgarlik:</b> O'zR JK 140-moddasi (Haqorat qilish) hamda MJtK 41-moddasiga muvofiq qonuniy choralar ko'riladi."
-    }.get(category, "⚖️ O'zbekiston Respublikasi qonunchiligiga ko'ra javobgarlik mavjud.")
+        "extremism": "O'zR JK 244-1-moddasiga ko'ra jinoiy javobgarlik belgilangan.",
+        "drugs": "O'zR JK 273-moddasiga ko'ra og'ir jinoiy javobgarlik belgilangan.",
+        "bullying": "O'zR JK 140-moddasiga muvofiq javobgarlik choralari belgilangan.",
+        "cybercrime": "O'zR JK 168-moddasiga muvofiq jinoiy javobgarlik belgilangan."
+    }.get(category, "O'zbekiston Respublikasi qonunchiligiga ko'ra javobgarlik belgilangan.")
     
     return (
-        f"{emoji} <b>XAVFLI MATN ANIQLANDI VA BLOKLANDI!</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 <b>Qonunbuzar:</b> {sender_mention}\n"
+        f"{emoji} <b>SafeGuard: Taqiqlangan matn bloklandi!</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 <b>Foydalanuvchi:</b> {sender_mention}\n"
         f"📂 <b>Kategoriya:</b> <code>{cat_label}</code>\n"
-        f"📝 <b>Tahliliy Izoh:</b> <i>{reason}</i>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"{legal_note}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📢 <i>SafeGuard Kiberxavfsizlik avtomatik nazorat tizimi.</i>"
+        f"📝 <b>Izoh:</b> <i>{reason}</i>\n"
+        f"⚖️ <b>Chora:</b> {legal_note}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
 
@@ -284,40 +285,40 @@ def nlp_forensic_report(result: dict, raw_text: str) -> str:
     reason = result.get("reason", "Tahlil yakunlandi.")
     is_viol = result.get("is_violation", False)
     
-    status_emoji = "🔴 JINAYAT ALOMATLARI ANIQLANDI" if is_viol else "✅ TIZIM XAVFSIZ"
-    status_color = "🚨" if is_viol else "🛡"
+    if not is_viol:
+        return (
+            f"🛡️ <b>Kiber-Tergov Ekspertiza Xulosasi</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📊 <b>Holat:</b> ✅ Tizim xavfsiz.\n"
+            f"🔬 <b>Tahlil:</b> Matnda hech qanday kiber-tahdid belgilari aniqlanmadi.\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        
+    status_emoji = "🔴 Qonunbuzarlik aniqlandi!"
+    status_color = "🚨"
     
     cat_label = {
         "extremism": "🧠 Ekstremizm va Radikalizm (O'zR JK 244-1)",
         "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
-        "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)"
+        "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)",
+        "cybercrime": "💻 Firibgarlik va Kiberjinoyat (O'zR JK 168)"
     }.get(category, "—")
     
-    short_text = raw_text[:100] + "..." if len(raw_text) > 100 else raw_text
-    
-    legal_section = ""
-    if is_viol and category:
-        legal_section = (
-            f"━━━━━━━━━━━━━━━━━━━━━\n"
-            f"⚖️ <b>Huquqiy Malakalash:</b>\n"
-            f"  {category.upper()} moddasi bo'yicha dalillar arxivi shakllantirildi. Ushbu izlar raqamli ekspertiza va sud-tergov jarayonlarida <b>rasmiy dalil</b> bo'lib xizmat qiladi.\n"
-        )
+    legal_section = {
+        "extremism": "O'zR JK 244-1-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi.",
+        "drugs": "O'zR JK 273-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi.",
+        "bullying": "O'zR JK 140-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi.",
+        "cybercrime": "O'zR JK 168-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi."
+    }.get(category, "Tegishli modda bo'yicha dalillar arxivi shakllantirildi.")
 
     return (
-        f"{status_color} <b>SafeGuard Bot KIBER-TERGOV TIZIMI</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 <b>Ekspertiza Xulosasi:</b>\n"
-        f"  • <b>Holat:</b> <code>{status_emoji}</code>\n"
-        f"  • <b>Kategoriya:</b> <b>{cat_label}</b>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📝 <b>Tekshirilgan Matn:</b>\n"
-        f"  <i>\"{short_text}\"</i>\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔬 <b>Tahliliy Izoh:</b>\n"
-        f"  <code>{reason}</code>\n"
-        f"{legal_section}"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📢 <i>SafeGuard Raqamli Ekspertiza va Kiberxavfsizlik tizimining rasmiy tahlilnomasi.</i>"
+        f"{status_color} <b>Kiber-Tergov Ekspertiza Xulosasi</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 <b>Holat:</b> {status_emoji}\n"
+        f"📂 <b>Kategoriya:</b> <b>{cat_label}</b>\n"
+        f"🔬 <b>Tahlil:</b> <code>{reason}</code>\n"
+        f"⚖️ <b>Huquqiy chora:</b> {legal_section} Ushbu izlar sud-tergov jarayonlarida rasmiy dalil bo'lib xizmat qiladi.\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
 

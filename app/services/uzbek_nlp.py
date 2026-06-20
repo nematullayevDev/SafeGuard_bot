@@ -179,6 +179,22 @@ def levenshtein_distance(s1: str, s2: str) -> int:
     return previous_row[-1]
 
 
+def is_false_positive(w: str, kw: str) -> bool:
+    if kw == "soli":
+        # Exclude tax, names, soloist, etc.
+        if w.startswith("soliq") or w.startswith("solih") or w.startswith("solist") or w.startswith("solishtir"):
+            return True
+    if kw == "klad":
+        # Exclude chocolate, report, warehouse, invoice
+        if "shokolad" in w or "doklad" in w or "sklad" in w or "nakladnoy" in w:
+            return True
+    if kw == "lira":
+        # Exclude poetry, lyrics
+        if w.startswith("lirik"):
+            return True
+    return False
+
+
 def is_fuzzy_match(word: str, keyword: str) -> bool:
     """
     Determines if a word fuzzy-matches a keyword under Uzbek moderation rules:
@@ -194,8 +210,12 @@ def is_fuzzy_match(word: str, keyword: str) -> bool:
     if w == kw:
         return True
         
+    if is_false_positive(w, kw):
+        return False
+        
     if len(kw) >= 4 and kw in w:
-        return True
+        if len(w) <= len(kw) + 3:
+            return True
         
     n = len(kw)
     if n < 5:
@@ -239,6 +259,12 @@ class UzbekNLPService:
             "koting", "jallod", "chort", "tvar", "gandonlar", "kallangni", 
             "tahdid", "zo'rlayman", "ursang", "o'ldiraman", "yuzingni yirtaman", 
             "sharmandangni chiqaraman", "gejga solaman", "urib o'ldiraman","skaman","seks","siks","sex"
+        }
+
+        self._cybercrime_keywords = {
+            "sms kod", "sms-kod", "tasdiqlash kodi", "kodni yubor", "karta tasdiqlash", 
+            "plastik karta", "yutuqli o'yin", "pul yutib", "sovg'a yutib", "fondi yutuq",
+            "shaxsiy kabinet", "keshbek yutuq", "parolingizni", "kodni ber", "kompensatsiya"
         }
 
     def normalize_text(self, text: str) -> str:
@@ -311,6 +337,20 @@ class UzbekNLPService:
                         original_match = raw_words[idx]
                         return True, "bullying", f"Kiberbulling, tahdid yoki og'ir haqorat elementlari aniqlandi (So'z: '{original_match}')"
 
+        # 4. Cybercrime / Phishing Check
+        for keyword in self._cybercrime_keywords:
+            if " " in keyword:
+                simplified_kw_phrase = simplify_text_preserve_spaces(keyword)
+                simplified_text_phrase = simplify_text_preserve_spaces(text)
+                if simplified_kw_phrase in simplified_text_phrase:
+                    return True, "cybercrime", f"Kiberfiribgarlik yoki moliyaviy fishing belgilari aniqlandi (Tahlil: '{keyword}')"
+            else:
+                simplified_kw = simplify_word(keyword)
+                for idx, w in enumerate(simplified_stemmed_words):
+                    if is_fuzzy_match(w, simplified_kw):
+                        original_match = raw_words[idx]
+                        return True, "cybercrime", f"Kiberfiribgarlik yoki moliyaviy fishing belgilari aniqlandi (Kalit: '{original_match}')"
+
         return False, None, None
 
     async def analyze_text(self, text: str) -> Dict[str, Any]:
@@ -328,16 +368,17 @@ class UzbekNLPService:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self._api_key}"
                 prompt = (
                     "Siz SafeGuard kiber-xavfsizlik tahlilchisisiz. "
-                    "Quyidagi matnni tahlil qiling va unda ushbu uchta jinoyat yoki qonunbuzarlik belgilari borligini aniqlang:\n"
+                    "Quyidagi matnni tahlil qiling va unda ushbu to'rtta jinoyat yoki qonunbuzarlik belgilari borligini aniqlang:\n"
                     "- extremism: Oliy sud taqiqlagan radikal diniy g'oyalar, shiorlar, ekstremistik guruhlar (ISID, Hizb ut-Tahrir va b.) targ'iboti.\n"
                     "- drugs: Sintetik giyohvand moddalar (mef, sol, kristall), taqiqlangan dorilar sotilishi, kladmenlik yoki kurirlik yashirin targ'iboti.\n"
-                    "- bullying: Guruh ichidagi shaxsga qaratilgan og'ir haqorat, sharmanda qilish yoki o'ldirish/zo'ravonlik tahdidlari.\n\n"
+                    "- bullying: Guruh ichidagi shaxsga qaratilgan og'ir haqorat, sharmanda qilish yoki o'ldirish/zo'ravonlik tahdidlari.\n"
+                    "- cybercrime: Kiberfiribgarlik, soxta aksiyalar, plastik karta yoki SMS kodlarni o'g'irlashga qaratilgan fishing xabarlar va firibgarlik urinishlari.\n\n"
                     f"Tahlil qilinuvchi matn: \"{text}\"\n\n"
                     "Javobni faqat va faqat quyidagi tuzilmaga ega JSON formatida qaytaring, boshqa hech narsa yozmang:\n"
                     "{\n"
                     "  \"is_violation\": true yoki false,\n"
-                    "  \"category\": \"extremism\" yoki \"drugs\" yoki \"bullying\" yoki null,\n"
-                    "  \"reason\": \"Flagged qilinish sababi yoki xavfsizligi haqida o'zbek tilida tahliliy izoh (maksimal 2 ta gap)\"\n"
+                    "  \"category\": \"extremism\" yoki \"drugs\" yoki \"bullying\" yoki \"cybercrime\" yoki null,\n"
+                    "  \"reason\": \"Flagged qilinish sababi yoki xavfsizligi haqida o'zbek tilida tahliliy izoh (maksimal 1-2 ta gap)\"\n"
                     "}"
                 )
                 
