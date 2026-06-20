@@ -79,9 +79,12 @@ def forensics_main_menu() -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(text="⚠️ Kiberbulling", callback_data="admin_forensics_list_p0_cbullying"),
-            InlineKeyboardButton(text="🌐 Barchasi", callback_data="admin_forensics_list_p0_call"),
+            InlineKeyboardButton(text="💻 Kiberjinoyat", callback_data="admin_forensics_list_p0_ccybercrime"),
         ],
-        [InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")]
+        [
+            InlineKeyboardButton(text="🌐 Barchasi", callback_data="admin_forensics_list_p0_call"),
+            InlineKeyboardButton(text="🔙 Orqaga", callback_data="admin_panel")
+        ],
     ])
 
 

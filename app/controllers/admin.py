@@ -192,6 +192,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             "extremism": "🚨 Ekstremizm",
             "drugs": "💊 Giyohvandlik",
             "bullying": "⚠️ Kiberbulling",
+            "cybercrime": "💻 Kiberjinoyat",
             "all": "🌐 Barcha dalillar",
         }.get(category, "Tergov")
 
@@ -333,6 +334,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             "extremism": "🚨 Ekstremizm",
             "drugs": "💊 Giyohvandlik",
             "bullying": "⚠️ Kiberbulling",
+            "cybercrime": "💻 Kiberjinoyat",
             "all": "🌐 Barcha dalillar",
         }.get(category, "Tergov")
 
@@ -373,6 +375,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             "extremism": "Diniy Ekstremizm",
             "drugs": "Giyohvandlik va Jargonlar",
             "bullying": "Kiberbulling va Haqorat",
+            "cybercrime": "Kiberjinoyat va Firibgarlik",
             "all": "Barcha Dalillar",
         }.get(category, "Tergov Dalillari")
         
