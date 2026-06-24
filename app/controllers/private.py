@@ -284,7 +284,10 @@ def register(dp: Dispatcher, c: Container) -> None:
         )
 
     async def cb_assistant(call: CallbackQuery, state: FSMContext):
-        if not await ensure_registered(call.message, c):
+        if not c.users.is_registered(call.from_user.id):
+            from app.views.texts import REGISTER_FIRST
+            from app.views.keyboards import go_start_kb
+            await call.message.answer(REGISTER_FIRST, reply_markup=go_start_kb())
             await call.answer()
             return
         await call.answer()
