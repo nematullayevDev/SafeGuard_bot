@@ -3,6 +3,8 @@ import logging
 
 from aiogram import Dispatcher, F
 from aiogram.types import Message
+from aiogram.fsm.context import FSMContext
+from aiogram.filters import Command
 
 from app.container import Container
 from app.controllers.filters import ensure_registered, is_owner
@@ -10,6 +12,8 @@ from app.core.bot import bot
 from app.core.config import settings
 from app.views import formatters
 from app.views.keyboards import main_menu
+from app.states.states import AssistantState
+import aiohttp
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +263,100 @@ def register(dp: Dispatcher, c: Container) -> None:
             
         await message.answer(final_response, parse_mode="HTML")
 
+    async def cmd_assistant(message: Message, state: FSMContext):
+        if not await ensure_registered(message, c):
+            return
+        await state.set_state(AssistantState.chatting)
+        await message.answer(
+            "🤖 <b>SafeGuard AI Maslahatchisiga xush kelibsiz!</b>\n\n"
+            "Kiberxavfsizlik va O'zbekiston qonunchiligi (masalan, kiberjinoyatlar, firibgarliklar, JK 168-modda) bo'yicha istalgan savolingizni berishingiz mumkin.\n\n"
+            "💬 <i>Suhbatni yakunlash va asosiy menyuga qaytish uchun <b>/exit</b> buyrug'ini yuboring.</i>",
+            parse_mode="HTML"
+        )
 
+    async def cmd_exit_assistant(message: Message, state: FSMContext):
+        current_state = await state.get_state()
+        if current_state == AssistantState.chatting.state:
+            await state.clear()
+            await message.answer(
+                "🏁 <b>Suhbat yakunlandi.</b> Asosiy menyuga qaytdingiz.\n"
+                "Yana yordam kerak bo'lsa, /assistant buyrug'ini yuboring.",
+                parse_mode="HTML",
+                reply_markup=main_menu(is_owner(message))
+            )
+        else:
+            await message.answer("Siz AI Maslahatchi suhbatida emassiz. /assistant orqali suhbatni boshlang.")
+
+    async def handle_assistant_chat(message: Message, state: FSMContext):
+        text = message.text or ""
+        if not text:
+            return
+        if text.startswith("/"):
+            if text == "/exit":
+                await cmd_exit_assistant(message, state)
+            elif text.startswith("/start"):
+                await state.clear()
+                name = message.from_user.first_name or "Foydalanuvchi"
+                uid = message.from_user.id
+                if c.users.is_registered(uid):
+                    await message.answer(
+                        f"🤖 <b>Asosiy menyuga qaytdingiz.</b>\n\nSuhbat yakunlandi. Yordam kerak bo'lsa, /assistant buyrug'ini yuboring.",
+                        reply_markup=main_menu(is_owner(message)),
+                        parse_mode="HTML",
+                    )
+                else:
+                    from app.views.keyboards import phone_keyboard
+                    from app.states.states import Registration
+                    await message.answer(
+                        "Ro'yxatdan o'tishingiz lozim. Iltimos raqamingizni yuboring:",
+                        reply_markup=phone_keyboard(),
+                    )
+                    await state.set_state(Registration.waiting_phone)
+            return
+
+        wait = await message.answer("🤖 <i>Maslahatchi javob tayyorlamoqda...</i>", parse_mode="HTML")
+        try:
+            api_key = settings.gemini_api_key
+            if not api_key:
+                await wait.edit_text("❌ Tizimda Gemini API kaliti topilmadi. Keyinroq qayta urinib ko'ring.")
+                return
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            prompt = (
+                "Siz SafeGuard kiber-xavfsizlik tahlilchisi va AI maslahatchisisiz. "
+                "Foydalanuvchining savoliga kiberxavfsizlik va O'zbekiston qonunchiligi nuqtai nazaridan batafsil, "
+                "professional va tushunarli tarzda o'zbek tilida javob bering. O'zbekiston qonunlariga "
+                "(masalan, JK 168-modda firibgarlik, kiberjinoyatlar, shaxsiy ma'lumotlar himoyasi) alohida urg'u bering.\n\n"
+                f"Foydalanuvchi savoli: \"{text}\"\n\n"
+                "Javobingiz professional, muloyim va foydali bo'lsin."
+            )
+            payload = {
+                "contents": [
+                    {
+                        "parts": [
+                            {
+                                "text": prompt
+                            }
+                        ]
+                    }
+                ]
+            }
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        reply_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        await wait.edit_text(reply_text, parse_mode="Markdown")
+                    else:
+                        await wait.edit_text("❌ Maslahatchi javob bera olmadi. API xatoligi yuz berdi.")
+        except Exception as e:
+            logger.error(f"AI Maslahatchi xatosi: {e}")
+            await wait.edit_text("❌ Tizimda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.")
+
+
+    dp.message.register(cmd_assistant, Command("assistant"), F.chat.type == "private")
+    dp.message.register(cmd_exit_assistant, Command("exit"), F.chat.type == "private")
+    dp.message.register(handle_assistant_chat, AssistantState.chatting, F.chat.type == "private")
     dp.message.register(handle_document, F.document, F.chat.type == "private")
     dp.message.register(handle_private_photo, F.photo, F.chat.type == "private")
     dp.message.register(handle_message, F.chat.type == "private")

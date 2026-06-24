@@ -18,3 +18,12 @@ class AddSiteState(StatesGroup):
 class QuizState(StatesGroup):
     answering = State()
 
+
+class AssistantState(StatesGroup):
+    chatting = State()
+
+
+class GroupSettingsState(StatesGroup):
+    waiting_keywords = State()
+    waiting_whitelist = State()
+

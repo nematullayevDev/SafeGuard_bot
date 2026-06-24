@@ -16,17 +16,18 @@ class ModerationService:
         self._max = max_warnings
 
     async def warn_or_ban(self, chat_id: int, user_id: int,
-                          sender_name: str, reason: str) -> None:
+                          sender_name: str, reason: str, max_warns: int = None) -> None:
         count = self._warnings.add(chat_id, user_id, reason)
         mention = f'<a href="tg://user?id={user_id}">{sender_name}</a>'
+        limit = max_warns if max_warns is not None else self._max
 
-        if count >= self._max:
+        if count >= limit:
             try:
                 await self._bot.ban_chat_member(chat_id, user_id)
                 self._warnings.clear(chat_id, user_id)
                 await self._bot.send_message(
                     chat_id,
-                    f"🚫 {mention} <b>BAN</b> qilindi! ({self._max} ta warn)\nSabab: {reason}",
+                    f"🚫 {mention} <b>BAN</b> qilindi! ({limit} ta warn)\nSabab: {reason}",
                     parse_mode="HTML",
                 )
             except Exception as e:
@@ -34,6 +35,6 @@ class ModerationService:
         else:
             await self._bot.send_message(
                 chat_id,
-                f"⚠️ {mention} ogohlantirish oldi! Warn: {count}/{self._max}\nSabab: {reason}",
+                f"⚠️ {mention} ogohlantirish oldi! Warn: {count}/{limit}\nSabab: {reason}",
                 parse_mode="HTML",
             )

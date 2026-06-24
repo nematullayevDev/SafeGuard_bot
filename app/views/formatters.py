@@ -433,20 +433,29 @@ def forensic_suspect_detail(suspect_details: dict, cases: Sequence[ForensicCase]
     return text
 
 
-def group_settings_text(chat_title: str, filters: dict) -> str:
-    l_status = "🟢 <b>Faol</b> (Fishing havolalar va qora ro'yxat bloklanadi)" if filters.get("filter_links", True) else "🔴 <b>O'chirilgan</b>"
-    f_status = "🟢 <b>Faol</b> (Virusli va xavfli fayllar bloklanadi)" if filters.get("filter_files", True) else "🔴 <b>O'chirilgan</b>"
-    n_status = "🟢 <b>Faol</b> (Ekstremizm, narkotik va haqoratlar bloklanadi)" if filters.get("filter_nlp", True) else "🔴 <b>O'chirilgan</b>"
+def group_settings_text(chat_title: str, filters: dict, g_settings: dict) -> str:
+    l_status = "🟢 <b>Faol</b>" if filters.get("filter_links", True) else "🔴 <b>O'chirilgan</b>"
+    f_status = "🟢 <b>Faol</b>" if filters.get("filter_files", True) else "🔴 <b>O'chirilgan</b>"
+    n_status = "🟢 <b>Faol</b>" if filters.get("filter_nlp", True) else "🔴 <b>O'chirilgan</b>"
+
+    limit = g_settings.get("warnings_limit", 3)
+    kws = g_settings.get("custom_keywords", "")
+    wl = g_settings.get("whitelisted_domains", "")
+    
+    kws_display = f"<code>{kws}</code>" if kws else "<i>sozlangan so'zlar yo'q</i>"
+    wl_display = f"<code>{wl}</code>" if wl else "<i>sozlangan domenlar yo'q</i>"
 
     return (
         f"⚙️ <b>«{chat_title}» Guruh Himoyasi Sozlamalari</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"Ushbu sahifada botning ushbu guruhdagi himoya modullarini boshqarishingiz mumkin:\n\n"
         f"🔗 <b>Havola Skaneri:</b> {l_status}\n"
         f"📦 <b>Fayl Skaneri:</b> {f_status}\n"
-        f"🧠 <b>Matn Tahlili (NLP):</b> {n_status}\n"
+        f"🧠 <b>Matn Tahlili (NLP):</b> {n_status}\n\n"
+        f"⚠️ <b>Ogohlantirishlar Limiti:</b> <code>{limit}</code> ta warn\n"
+        f"🚫 <b>Taqiqlangan so'zlar:</b> {kws_display}\n"
+        f"✅ <b>Oq ro'yxat (domenlar):</b> {wl_display}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"👇 <i>Tegishli modul holatini o'zgartirish uchun quyidagi tugmalarni bosing:</i>"
+        f"👇 <i>Tegishli sozlamani o'zgartirish uchun quyidagi tugmalarni bosing:</i>"
     )
 
 

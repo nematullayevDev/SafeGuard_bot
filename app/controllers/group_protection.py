@@ -6,6 +6,7 @@ from datetime import datetime
 from aiogram import Dispatcher, F
 from aiogram.filters import Command
 from aiogram.types import ChatMemberUpdated, Message, CallbackQuery
+from aiogram.fsm.context import FSMContext
 
 from app.container import Container
 from app.controllers.filters import is_chat_admin
@@ -16,8 +17,20 @@ from app.services import extract_links
 from app.views import formatters, keyboards
 from app.views.texts import GROUP_ADDED, GROUP_ADMIN_ONLY, GROUP_NO_INVITE_LINK
 from app.repositories.base import get_conn
+from app.states.states import GroupSettingsState
+import re
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+CARD_WARNING = (
+    "⚠️ <b>Diqqat! Guruhda plastik karta raqami aniqlandi!</b>\n\n"
+    "Plastik kartangiz xavfsizligini ta'minlash uchun quyidagi qoidalarga qat'iy amal qiling:\n"
+    "1️⃣ Kartangizning <b>CVV kodini</b> (orqa tomondagi 3 xonali son) va <b>amal qilish muddatini</b> hech kimga aytmang!\n"
+    "2️⃣ Telefoningizga kelgan <b>SMS tasdiqlash kodini</b> hech qachon hech kimga ulashmang!\n"
+    "3️⃣ SafeGuard bot sizdan hech qachon karta ma'lumotlarini so'ramaydi.\n\n"
+    "🛡 <i>O'zingizni kiberfiribgarlardan asrang!</i>"
+)
 
 
 async def _safe_delete(msg: Message | None) -> None:
@@ -182,8 +195,10 @@ def register(dp: Dispatcher, c: Container) -> None:
         target = message.reply_to_message.from_user
         parts = (message.text or "").split(maxsplit=1)
         reason = parts[1] if len(parts) > 1 else "Sabab ko'rsatilmadi"
+        g_settings = c.groups.get_custom_settings(message.chat.id)
+        limit = g_settings.get("warnings_limit", settings.max_warnings)
         await c.moderator.warn_or_ban(
-            message.chat.id, target.id, target.full_name, reason
+            message.chat.id, target.id, target.full_name, reason, max_warns=limit
         )
 
     async def cmd_warns(message: Message):
@@ -192,8 +207,10 @@ def register(dp: Dispatcher, c: Container) -> None:
             return
         target = message.reply_to_message.from_user
         n = c.warnings.count(message.chat.id, target.id)
+        g_settings = c.groups.get_custom_settings(message.chat.id)
+        limit = g_settings.get("warnings_limit", settings.max_warnings)
         await message.answer(
-            f"📋 <b>{target.full_name}</b> — Warn: {n}/{settings.max_warnings}",
+            f"📋 <b>{target.full_name}</b> — Warn: {n}/{limit}",
             parse_mode="HTML",
         )
 
@@ -256,7 +273,9 @@ def register(dp: Dispatcher, c: Container) -> None:
                     parse_mode="HTML",
                 )
                 await _save_forensics_case(message, "file", f"Antivirus xavfli deb topgan fayl yubordi: {file_name} ({result.malicious} ta tahdid)", c)
-                await c.moderator.warn_or_ban(chat_id, sender_id, sender, "Xavfli fayl yuborish")
+                g_settings = c.groups.get_custom_settings(chat_id)
+                limit = g_settings.get("warnings_limit", settings.max_warnings)
+                await c.moderator.warn_or_ban(chat_id, sender_id, sender, "Xavfli fayl yuborish", max_warns=limit)
             else:
                 await _safe_delete(wait)
         except Exception as e:
@@ -267,7 +286,39 @@ def register(dp: Dispatcher, c: Container) -> None:
         if not text:
             return False
 
-        # 1. Spam check
+        # 0. Kiber-Qalqon Card Check (doesn't block message, just warns)
+        card_pattern = r"\b(?:8600|9860|5614|4[0-9]{3}|5[0-9]{3}|6[0-9]{3})[- ]?[0-9]{4}[- ]?[0-9]{4}[- ]?[0-9]{4}\b"
+        if re.search(card_pattern, text):
+            try:
+                await message.reply(CARD_WARNING, parse_mode="HTML")
+            except Exception as e:
+                logger.warning(f"Karta haqida ogohlantirish yuborishda xato: {e}")
+
+        # Retrieve custom group settings
+        g_settings = c.groups.get_custom_settings(message.chat.id)
+        limit = g_settings.get("warnings_limit", settings.max_warnings)
+
+        # 1. Custom Keywords Check
+        if filters.get("filter_nlp", True):
+            custom_kws = [kw.strip().lower() for kw in g_settings.get("custom_keywords", "").split(",") if kw.strip()]
+            text_lower = text.lower()
+            matched_kws = [kw for kw in custom_kws if kw in text_lower]
+            if matched_kws:
+                await _safe_delete(message)
+                await bot.send_message(
+                    message.chat.id,
+                    f"🚫 <b>TAQIQLANGAN SO'Z ANIQLANDI!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 Yuboruvchi: {mention}\n"
+                    f"📝 Xabarda guruh uchun taqiqlangan so'z aniqlandi.\n\n"
+                    f"<i>Tizim avtomatik ravishda xabarni o'chirdi.</i>",
+                    parse_mode="HTML",
+                )
+                await _save_forensics_case(message, "bullying", f"Guruh qora ro'yxatidagi so'z(lar) topildi: {', '.join(matched_kws)}", c)
+                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, f"Taqiqlangan so'z ishlatish ({matched_kws[0]})", max_warns=limit)
+                return True
+
+        # 2. Spam check
         if filters.get("filter_nlp", True):
             if c.spam.is_spam(text):
                 await _safe_delete(message)
@@ -281,10 +332,10 @@ def register(dp: Dispatcher, c: Container) -> None:
                     parse_mode="HTML",
                 )
                 await _save_forensics_case(message, "bullying", "Spam kalit so'zlar aniqlandi", c)
-                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Spam xabar yuborish")
+                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Spam xabar yuborish", max_warns=limit)
                 return True
 
-        # 2. NLP check
+        # 3. NLP check
         if filters.get("filter_nlp", True):
             nlp_res = await c.nlp.analyze_text(text)
             if nlp_res["is_violation"]:
@@ -300,58 +351,78 @@ def register(dp: Dispatcher, c: Container) -> None:
                 reason_map = {
                     "extremism": "Diniy extremism va radikalizm targ'iboti",
                     "drugs": "Giyohvand moddalar yoki preparatlar yashirin savdosi/targ'iboti",
-                    "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi"
+                    "bullying": "Kiberbulling, shaxsiyatga tegish yoki zo'ravonlik tahdidi",
+                    "cybercrime": "Kiberfiribgarlik yoki moliyaviy fishing faoliyati"
                 }
                 moderator_reason = reason_map.get(category, f"Siyosat buzilishi: {reason}")
-                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, moderator_reason)
+                await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, moderator_reason, max_warns=limit)
                 return True
 
-        # 3. Link check
+        # 4. Link check
         links = extract_links(message)
         if links and filters.get("filter_links", True):
-            wait = await message.reply(
-                "⏳ <b>Link tekshirilmoqda...</b>\n🛡 Ochishga shoshilmang!", parse_mode="HTML"
-            )
-            any_bad = False
+            custom_wl = [d.strip().lower() for d in g_settings.get("whitelisted_domains", "").split(",") if d.strip()]
+            
+            scannable_links = []
             for url in links:
-                try:
-                    scan_target = url
-                    if url.startswith("@"):
-                        scan_target = f"https://t.me/{url.lstrip('@')}"
-                    elif ("t.me/" in url or "telegram.me/" in url) and not url.startswith(("http://", "https://")):
-                        scan_target = f"https://{url}"
+                scan_target = url
+                if url.startswith("@"):
+                    scan_target = f"https://t.me/{url.lstrip('@')}"
+                elif ("t.me/" in url or "telegram.me/" in url) and not url.startswith(("http://", "https://")):
+                    scan_target = f"https://{url}"
 
-                    if c.blacklist.exists(scan_target):
-                        any_bad = True
-                        await _safe_delete(message)
-                        await _safe_delete(wait)
-                        await bot.send_message(
-                            message.chat.id, formatters.blacklisted_link_warning(mention),
-                            parse_mode="HTML",
-                        )
-                        await _save_forensics_case(message, "link", f"Qora ro'yxatdagi xavfli link yubordi: {url}", c)
-                        await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Qora ro'yxatdagi link")
+                parsed = urlparse(scan_target)
+                domain = parsed.netloc.lower()
+                if domain.startswith("www."):
+                    domain = domain[4:]
+                
+                is_whitelisted = False
+                for wl_dom in custom_wl:
+                    if domain == wl_dom or domain.endswith("." + wl_dom):
+                        is_whitelisted = True
                         break
+                
+                if not is_whitelisted:
+                    scannable_links.append((url, scan_target))
 
-                    result = await c.scanner.scan_url(sender_id, scan_target)
-                    if result.verdict.is_bad:
-                        any_bad = True
-                        await _safe_delete(message)
-                        await _safe_delete(wait)
-                        await bot.send_message(
-                            message.chat.id, formatters.dangerous_link_warning(result, mention),
-                            parse_mode="HTML",
-                        )
-                        await _save_forensics_case(message, "link", f"Antivirus xavfli deb topgan link yubordi: {url} ({result.malicious} ta tahdid)", c)
-                        await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Xavfli link yuborish")
-                        break
-                except Exception as e:
-                    logger.error("Guruh link xatolik: %s", e)
+            if scannable_links:
+                wait = await message.reply(
+                    "⏳ <b>Link tekshirilmoqda...</b>\n🛡 Ochishga shoshilmang!", parse_mode="HTML"
+                )
+                any_bad = False
+                for url, scan_target in scannable_links:
+                    try:
+                        if c.blacklist.exists(scan_target):
+                            any_bad = True
+                            await _safe_delete(message)
+                            await _safe_delete(wait)
+                            await bot.send_message(
+                                message.chat.id, formatters.blacklisted_link_warning(mention),
+                                parse_mode="HTML",
+                            )
+                            await _save_forensics_case(message, "link", f"Qora ro'yxatdagi xavfli link yubordi: {url}", c)
+                            await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Qora ro'yxatdagi link", max_warns=limit)
+                            break
 
-            if any_bad:
-                return True
-            else:
-                await _safe_delete(wait)
+                        result = await c.scanner.scan_url(sender_id, scan_target)
+                        if result.verdict.is_bad:
+                            any_bad = True
+                            await _safe_delete(message)
+                            await _safe_delete(wait)
+                            await bot.send_message(
+                                message.chat.id, formatters.dangerous_link_warning(result, mention),
+                                parse_mode="HTML",
+                            )
+                            await _save_forensics_case(message, "link", f"Antivirus xavfli deb topgan link yubordi: {url} ({result.malicious} ta tahdid)", c)
+                            await c.moderator.warn_or_ban(message.chat.id, sender_id, sender, "Xavfli link yuborish", max_warns=limit)
+                            break
+                    except Exception as e:
+                        logger.error("Guruh link xatolik: %s", e)
+
+                if any_bad:
+                    return True
+                else:
+                    await _safe_delete(wait)
 
         return False
 
@@ -409,8 +480,33 @@ def register(dp: Dispatcher, c: Container) -> None:
             if not qr_data:
                 return
             
+            g_settings = c.groups.get_custom_settings(chat_id)
+            limit = g_settings.get("warnings_limit", settings.max_warnings)
+            
             if qr_data.startswith(("http://", "https://")):
                 if not filters.get("filter_links", True):
+                    return
+                
+                # Whitelisted domains check
+                custom_wl = [d.strip().lower() for d in g_settings.get("whitelisted_domains", "").split(",") if d.strip()]
+                parsed = urlparse(qr_data)
+                domain = parsed.netloc.lower()
+                if domain.startswith("www."):
+                    domain = domain[4:]
+                
+                is_whitelisted = False
+                for wl_dom in custom_wl:
+                    if domain == wl_dom or domain.endswith("." + wl_dom):
+                        is_whitelisted = True
+                        break
+                
+                if is_whitelisted:
+                    await message.reply(
+                        f"🔍 <b>Rasmdan QR-kod aniqlandi!</b>\n"
+                        f"🔗 Havola: <code>{qr_data}</code>\n"
+                        f"✅ Havola oq ro'yxatda (ishonchli).",
+                        parse_mode="HTML"
+                    )
                     return
                 
                 if c.blacklist.exists(qr_data):
@@ -425,7 +521,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                         parse_mode="HTML"
                     )
                     await _save_forensics_case(message, "link", f"QR-kod orqali qora ro'yxatdagi xavfli link yubordi: {qr_data}", c)
-                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, "QR-kod orqali xavfli link tarqatish")
+                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, "QR-kod orqali xavfli link tarqatish", max_warns=limit)
                     return
                 
                 result = await c.scanner.scan_url(sender_id, qr_data)
@@ -441,7 +537,7 @@ def register(dp: Dispatcher, c: Container) -> None:
                         parse_mode="HTML"
                     )
                     await _save_forensics_case(message, "link", f"QR-kod orqali antivirus aniqlagan xavfli link yubordi: {qr_data} ({result.malicious} ta tahdid)", c)
-                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, "QR-kod orqali xavfli link tarqatish")
+                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, "QR-kod orqali xavfli link tarqatish", max_warns=limit)
                 else:
                     await message.reply(
                         f"🔍 <b>Rasmdan QR-kod aniqlandi!</b>\n"
@@ -473,9 +569,10 @@ def register(dp: Dispatcher, c: Container) -> None:
                     reason_map = {
                         "extremism": "QR-kod orqali diniy extremism/radikalizm",
                         "drugs": "QR-kod orqali giyohvandlik targ'iboti",
-                        "bullying": "QR-kod orqali kiberbulling/haqorat"
+                        "bullying": "QR-kod orqali kiberbulling/haqorat",
+                        "cybercrime": "QR-kod orqali kiberfiribgarlik/fishing"
                     }
-                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, reason_map.get(category, f"QR-kod qoidabuzarligi: {reason}"))
+                    await c.moderator.warn_or_ban(chat_id, sender_id, sender, reason_map.get(category, f"QR-kod qoidabuzarligi: {reason}"), max_warns=limit)
                 else:
                     await message.reply(
                         f"🔍 <b>Rasmdan QR-kod aniqlandi!</b>\n"
@@ -494,10 +591,11 @@ def register(dp: Dispatcher, c: Container) -> None:
         chat_id = message.chat.id
         chat_title = message.chat.title or "Guruh"
         filters = c.user_settings.get_group_settings(chat_id)
+        g_settings = c.groups.get_custom_settings(chat_id)
         await message.answer(
-            formatters.group_settings_text(chat_title, filters),
+            formatters.group_settings_text(chat_title, filters, g_settings),
             parse_mode="HTML",
-            reply_markup=keyboards.group_settings_kb(chat_id, filters)
+            reply_markup=keyboards.group_settings_kb(chat_id, filters, g_settings)
         )
 
     async def cmd_getlink(message: Message):
@@ -554,14 +652,140 @@ def register(dp: Dispatcher, c: Container) -> None:
         c.user_settings.set_group_filter(target_chat_id, filter_name, new_val)
 
         updated_filters = c.user_settings.get_group_settings(target_chat_id)
+        g_settings = c.groups.get_custom_settings(target_chat_id)
         chat_title = call.message.chat.title or "Guruh"
         
         await call.message.edit_text(
-            formatters.group_settings_text(chat_title, updated_filters),
+            formatters.group_settings_text(chat_title, updated_filters, g_settings),
             parse_mode="HTML",
-            reply_markup=keyboards.group_settings_kb(target_chat_id, updated_filters)
+            reply_markup=keyboards.group_settings_kb(target_chat_id, updated_filters, g_settings)
         )
         await call.answer("Sozlama o'zgartirildi!")
+
+    async def _is_admin_or_owner(call: CallbackQuery, target_chat_id: int) -> bool:
+        try:
+            member = await bot.get_chat_member(target_chat_id, call.from_user.id)
+            if member.status in ("administrator", "creator") or call.from_user.id == settings.admin_id:
+                return True
+        except Exception:
+            pass
+        return False
+
+    async def handle_warn_dec(call: CallbackQuery):
+        chat_id = int(call.data.replace("gset_warn_dec_", ""))
+        if not await _is_admin_or_owner(call, chat_id):
+            await call.answer("Bu tugmani faqat guruh adminlari bosa oladi!", show_alert=True)
+            return
+        g_settings = c.groups.get_custom_settings(chat_id)
+        limit = max(1, g_settings.get("warnings_limit", 3) - 1)
+        c.groups.set_warnings_limit(chat_id, limit)
+        
+        filters = c.user_settings.get_group_settings(chat_id)
+        updated_g_settings = c.groups.get_custom_settings(chat_id)
+        chat_title = call.message.chat.title or "Guruh"
+        await call.message.edit_text(
+            formatters.group_settings_text(chat_title, filters, updated_g_settings),
+            parse_mode="HTML",
+            reply_markup=keyboards.group_settings_kb(chat_id, filters, updated_g_settings)
+        )
+        await call.answer(f"Ogohlantirish limiti {limit} qilib belgilandi!")
+
+    async def handle_warn_inc(call: CallbackQuery):
+        chat_id = int(call.data.replace("gset_warn_inc_", ""))
+        if not await _is_admin_or_owner(call, chat_id):
+            await call.answer("Bu tugmani faqat guruh adminlari bosa oladi!", show_alert=True)
+            return
+        g_settings = c.groups.get_custom_settings(chat_id)
+        limit = min(10, g_settings.get("warnings_limit", 3) + 1)
+        c.groups.set_warnings_limit(chat_id, limit)
+        
+        filters = c.user_settings.get_group_settings(chat_id)
+        updated_g_settings = c.groups.get_custom_settings(chat_id)
+        chat_title = call.message.chat.title or "Guruh"
+        await call.message.edit_text(
+            formatters.group_settings_text(chat_title, filters, updated_g_settings),
+            parse_mode="HTML",
+            reply_markup=keyboards.group_settings_kb(chat_id, filters, updated_g_settings)
+        )
+        await call.answer(f"Ogohlantirish limiti {limit} qilib belgilandi!")
+
+    async def handle_edit_kws(call: CallbackQuery, state: FSMContext):
+        chat_id = int(call.data.replace("gset_edit_kws_", ""))
+        if not await _is_admin_or_owner(call, chat_id):
+            await call.answer("Bu tugmani faqat guruh adminlari bosa oladi!", show_alert=True)
+            return
+        await call.answer()
+        await state.update_data(settings_chat_id=chat_id)
+        await state.set_state(GroupSettingsState.waiting_keywords)
+        await call.message.answer(
+            "✍️ <b>Guruh uchun taqiqlangan kalit so'zlarni kiriting:</b>\n\n"
+            "So'zlarni vergul bilan ajratib yozing (masalan: <i>reklama, aksiya, bonus</i>).\n"
+            "Mavjud taqiqlangan so'zlarni tozalash uchun <code>tozalash</code> deb yozing.\n\n"
+            "<i>Bekor qilish uchun /cancel deb yozing.</i>",
+            parse_mode="HTML"
+        )
+
+    async def handle_edit_wl(call: CallbackQuery, state: FSMContext):
+        chat_id = int(call.data.replace("gset_edit_wl_", ""))
+        if not await _is_admin_or_owner(call, chat_id):
+            await call.answer("Bu tugmani faqat guruh adminlari bosa oladi!", show_alert=True)
+            return
+        await call.answer()
+        await state.update_data(settings_chat_id=chat_id)
+        await state.set_state(GroupSettingsState.waiting_whitelist)
+        await call.message.answer(
+            "✍️ <b>Guruh uchun oq ro'yxatdagi domenlarni kiriting:</b>\n\n"
+            "Domenlarni vergul bilan ajratib yozing (masalan: <i>kun.uz, google.com, daryo.uz</i>).\n"
+            "Oq ro'yxatni tozalash uchun <code>tozalash</code> deb yozing.\n\n"
+            "<i>Bekor qilish uchun /cancel deb yozing.</i>",
+            parse_mode="HTML"
+        )
+
+    async def process_kws_input(message: Message, state: FSMContext):
+        text = message.text or ""
+        if text.strip().lower() == "/cancel":
+            await state.clear()
+            await message.reply("❌ Sozlash bekor qilindi.")
+            return
+            
+        data = await state.get_data()
+        chat_id = data.get("settings_chat_id")
+        if not chat_id:
+            await state.clear()
+            return
+            
+        if text.strip().lower() == "tozalash":
+            c.groups.set_custom_keywords(chat_id, "")
+            await message.reply("✅ Guruh taqiqlangan kalit so'zlari tozalandi!")
+        else:
+            kws = ",".join([w.strip() for w in text.split(",") if w.strip()])
+            c.groups.set_custom_keywords(chat_id, kws)
+            await message.reply(f"✅ Guruh taqiqlangan kalit so'zlari saqlandi: <code>{kws}</code>", parse_mode="HTML")
+            
+        await state.clear()
+
+    async def process_wl_input(message: Message, state: FSMContext):
+        text = message.text or ""
+        if text.strip().lower() == "/cancel":
+            await state.clear()
+            await message.reply("❌ Sozlash bekor qilindi.")
+            return
+            
+        data = await state.get_data()
+        chat_id = data.get("settings_chat_id")
+        if not chat_id:
+            await state.clear()
+            return
+            
+        if text.strip().lower() == "tozalash":
+            c.groups.set_whitelisted_domains(chat_id, "")
+            await message.reply("✅ Guruh oq ro'yxati tozalandi!")
+        else:
+            domains = ",".join([d.strip().lower() for d in text.split(",") if d.strip()])
+            c.groups.set_whitelisted_domains(chat_id, domains)
+            await message.reply(f"✅ Guruh oq ro'yxati saqlandi: <code>{domains}</code>", parse_mode="HTML")
+            
+        await state.clear()
 
     async def handle_close_gset(call: CallbackQuery):
         await call.message.delete()
@@ -585,3 +809,9 @@ def register(dp: Dispatcher, c: Container) -> None:
 
     dp.callback_query.register(handle_toggle_gset, F.data.startswith("toggle_gset_"))
     dp.callback_query.register(handle_close_gset, F.data == "close_group_settings")
+    dp.callback_query.register(handle_warn_dec, F.data.startswith("gset_warn_dec_"))
+    dp.callback_query.register(handle_warn_inc, F.data.startswith("gset_warn_inc_"))
+    dp.callback_query.register(handle_edit_kws, F.data.startswith("gset_edit_kws_"))
+    dp.callback_query.register(handle_edit_wl, F.data.startswith("gset_edit_wl_"))
+    dp.message.register(process_kws_input, GroupSettingsState.waiting_keywords)
+    dp.message.register(process_wl_input, GroupSettingsState.waiting_whitelist)

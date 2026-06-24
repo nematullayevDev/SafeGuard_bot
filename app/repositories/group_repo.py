@@ -85,3 +85,47 @@ class GroupRepository(BaseRepository):
 
     def active(self) -> list[Group]:
         return [g for g in self.all() if g.is_active]
+
+    def get_custom_settings(self, chat_id: int) -> dict:
+        with get_conn() as conn:
+            row = conn.execute(
+                "SELECT warnings_limit, custom_keywords, whitelisted_domains FROM group_settings WHERE chat_id = ?",
+                (chat_id,)
+            ).fetchone()
+        if row:
+            return {
+                "warnings_limit": row[0],
+                "custom_keywords": row[1] or "",
+                "whitelisted_domains": row[2] or ""
+            }
+        return {
+            "warnings_limit": 3,
+            "custom_keywords": "",
+            "whitelisted_domains": ""
+        }
+
+    def set_warnings_limit(self, chat_id: int, limit: int) -> None:
+        settings = self.get_custom_settings(chat_id)
+        self.update_custom_settings(chat_id, limit, settings["custom_keywords"], settings["whitelisted_domains"])
+
+    def set_custom_keywords(self, chat_id: int, keywords: str) -> None:
+        settings = self.get_custom_settings(chat_id)
+        self.update_custom_settings(chat_id, settings["warnings_limit"], keywords, settings["whitelisted_domains"])
+
+    def set_whitelisted_domains(self, chat_id: int, domains: str) -> None:
+        settings = self.get_custom_settings(chat_id)
+        self.update_custom_settings(chat_id, settings["warnings_limit"], settings["custom_keywords"], domains)
+
+    def update_custom_settings(self, chat_id: int, warnings_limit: int, custom_keywords: str, whitelisted_domains: str) -> None:
+        with get_conn() as conn:
+            conn.execute(
+                """
+                INSERT INTO group_settings (chat_id, warnings_limit, custom_keywords, whitelisted_domains)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(chat_id) DO UPDATE SET
+                    warnings_limit = excluded.warnings_limit,
+                    custom_keywords = excluded.custom_keywords,
+                    whitelisted_domains = excluded.whitelisted_domains
+                """,
+                (chat_id, warnings_limit, custom_keywords, whitelisted_domains)
+            )

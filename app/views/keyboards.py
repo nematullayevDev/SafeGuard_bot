@@ -283,10 +283,12 @@ def forensic_detail_kb(user_id: int, page: int, category: str = "all") -> Inline
     ])
 
 
-def group_settings_kb(chat_id: int, filters: dict) -> InlineKeyboardMarkup:
+def group_settings_kb(chat_id: int, filters: dict, g_settings: dict) -> InlineKeyboardMarkup:
     l_status = "✅ Faol" if filters.get("filter_links", True) else "❌ O'chirilgan"
     f_status = "✅ Faol" if filters.get("filter_files", True) else "❌ O'chirilgan"
     n_status = "✅ Faol" if filters.get("filter_nlp", True) else "❌ O'chirilgan"
+    
+    limit = g_settings.get("warnings_limit", 3)
 
     return InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -300,6 +302,17 @@ def group_settings_kb(chat_id: int, filters: dict) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="🧠 Matn Tahlili (NLP)", callback_data="dummy"),
             InlineKeyboardButton(text=n_status, callback_data=f"toggle_gset_{chat_id}_filter_nlp")
+        ],
+        # Warn limit adjustment row
+        [
+            InlineKeyboardButton(text="➖ Warn", callback_data=f"gset_warn_dec_{chat_id}"),
+            InlineKeyboardButton(text=f"⚠️ Warn Limit: {limit}", callback_data="dummy"),
+            InlineKeyboardButton(text="➕ Warn", callback_data=f"gset_warn_inc_{chat_id}")
+        ],
+        # Custom Blacklist and Whitelist domain buttons
+        [
+            InlineKeyboardButton(text="🚫 Kalit so'zlar", callback_data=f"gset_edit_kws_{chat_id}"),
+            InlineKeyboardButton(text="✅ Oq ro'yxat", callback_data=f"gset_edit_wl_{chat_id}")
         ],
         [InlineKeyboardButton(text="❌ Yopish", callback_data="close_group_settings")]
     ])

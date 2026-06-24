@@ -88,6 +88,15 @@ def init_schema() -> None:
         c.execute("CREATE INDEX IF NOT EXISTS idx_warnings_chat_user ON warnings(chat_id, user_id)")
         c.execute("CREATE INDEX IF NOT EXISTS idx_scan_history_user_id ON scan_history(user_id)")
 
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS group_settings (
+                chat_id INTEGER PRIMARY KEY,
+                warnings_limit INTEGER DEFAULT 3,
+                custom_keywords TEXT DEFAULT '',
+                whitelisted_domains TEXT DEFAULT ''
+            )
+        """)
+
 
         # banned_sites — migrate legacy table missing UNIQUE constraint
         c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='banned_sites'")
