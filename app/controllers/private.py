@@ -1,5 +1,6 @@
 """Private-chat handlers: file scanning, URL scanning, spam detection."""
 import logging
+import asyncio
 
 from aiogram import Dispatcher, F
 from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
@@ -54,6 +55,62 @@ async def get_active_model(api_key: str) -> str:
 
     ACTIVE_MODEL = candidates[0]
     return ACTIVE_MODEL
+
+
+async def call_gemini_api(api_key: str, text: str) -> str:
+    primary_model = await get_active_model(api_key)
+    models_to_try = [primary_model]
+    for m in ["gemini-3.1-flash-lite", "gemini-1.5-flash", "gemini-pro"]:
+        if m not in models_to_try:
+            models_to_try.append(m)
+
+    prompt = (
+        "Siz SafeGuard kiber-xavfsizlik tahlilchisi va AI maslahatchisisiz. "
+        "Foydalanuvchining savoliga kiberxavfsizlik va O'zbekiston qonunchiligi nuqtai nazaridan batafsil, "
+        "professional va tushunarli tarzda o'zbek tilida javob bering. O'zbekiston qonunlariga "
+        "(masalan, JK 168-modda firibgarlik, kiberjinoyatlar, shaxsiy ma'lumotlar himoyasi) alohida urg'u bering.\n\n"
+        f"Foydalanuvchi savoli: \"{text}\"\n\n"
+        "Javobingiz professional, muloyim va foydali bo'lsin."
+    )
+    payload = {
+        "contents": [
+            {
+                "parts": [
+                    {
+                        "text": prompt
+                    }
+                ]
+            }
+        ]
+    }
+
+    last_error_status = None
+    last_error_text = ""
+
+    for model in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+        for attempt in range(2):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        else:
+                            last_error_status = response.status
+                            last_error_text = await response.text()
+                            logger.warning(f"Gemini API model {model} attempt {attempt+1} failed with status {response.status}: {last_error_text}")
+                            if response.status in (503, 429):
+                                await asyncio.sleep(1.5 * (attempt + 1))
+                                continue
+                            break
+            except Exception as e:
+                logger.error(f"Network error in call_gemini_api for {model}: {e}")
+                last_error_status = "Connection Error"
+                last_error_text = str(e)
+                await asyncio.sleep(1)
+
+    raise Exception(f"API Error (Status: {last_error_status})")
 
 
 def _rate_limit_text() -> str:
@@ -398,40 +455,11 @@ def register(dp: Dispatcher, c: Container) -> None:
                 await wait.edit_text("❌ Tizimda Gemini API kaliti topilmadi. Keyinroq qayta urinib ko'ring.")
                 return
 
-            model = await get_active_model(api_key)
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-            prompt = (
-                "Siz SafeGuard kiber-xavfsizlik tahlilchisi va AI maslahatchisisiz. "
-                "Foydalanuvchining savoliga kiberxavfsizlik va O'zbekiston qonunchiligi nuqtai nazaridan batafsil, "
-                "professional va tushunarli tarzda o'zbek tilida javob bering. O'zbekiston qonunlariga "
-                "(masalan, JK 168-modda firibgarlik, kiberjinoyatlar, shaxsiy ma'lumotlar himoyasi) alohida urg'u bering.\n\n"
-                f"Foydalanuvchi savoli: \"{text}\"\n\n"
-                "Javobingiz professional, muloyim va foydali bo'lsin."
-            )
-            payload = {
-                "contents": [
-                    {
-                        "parts": [
-                            {
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ]
-            }
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        reply_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                        await wait.edit_text(reply_text, parse_mode="Markdown")
-                    else:
-                        err_text = await response.text()
-                        logger.error(f"Gemini API error (status={response.status}): {err_text}")
-                        await wait.edit_text(f"❌ Maslahatchi javob bera olmadi. API xatoligi yuz berdi (Status: {response.status}).")
+            response_text = await call_gemini_api(api_key, text)
+            await wait.edit_text(response_text, parse_mode="Markdown")
         except Exception as e:
             logger.error(f"AI Maslahatchi xatosi: {e}")
-            await wait.edit_text("❌ Tizimda xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.")
+            await wait.edit_text(f"❌ Maslahatchi javob bera olmadi. {str(e)}.")
 
 
     dp.message.register(cmd_assistant, Command("assistant"), F.chat.type == "private")
