@@ -2,7 +2,7 @@
 import logging
 
 from aiogram import Dispatcher, F
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.filters import Command
 
@@ -267,42 +267,91 @@ def register(dp: Dispatcher, c: Container) -> None:
         if not await ensure_registered(message, c):
             return
         await state.set_state(AssistantState.chatting)
+        
+        # Send a reply keyboard with an exit button for premium UX
+        kb = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="🏁 Suhbatni yakunlash")]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+        
         await message.answer(
             "🤖 <b>SafeGuard AI Maslahatchisiga xush kelibsiz!</b>\n\n"
             "Kiberxavfsizlik va O'zbekiston qonunchiligi (masalan, kiberjinoyatlar, firibgarliklar, JK 168-modda) bo'yicha istalgan savolingizni berishingiz mumkin.\n\n"
-            "💬 <i>Suhbatni yakunlash va asosiy menyuga qaytish uchun <b>/exit</b> buyrug'ini yuboring.</i>",
-            parse_mode="HTML"
+            "💬 <i>Suhbatni yakunlash va asosiy menyuga qaytish uchun pastdagi tugmani bosing yoki <b>/exit</b> deb yozing.</i>",
+            parse_mode="HTML",
+            reply_markup=kb
+        )
+
+    async def cb_assistant(call: CallbackQuery, state: FSMContext):
+        if not await ensure_registered(call.message, c):
+            await call.answer()
+            return
+        await call.answer()
+        await state.set_state(AssistantState.chatting)
+        
+        # Send a reply keyboard with an exit button
+        kb = ReplyKeyboardMarkup(
+            keyboard=[[KeyboardButton(text="🏁 Suhbatni yakunlash")]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+        
+        # Notify user they started AI chat
+        await call.message.answer(
+            "🤖 <b>SafeGuard AI Maslahatchisiga xush kelibsiz!</b>\n\n"
+            "Kiberxavfsizlik va O'zbekiston qonunchiligi bo'yicha savollaringizni yozavering.\n\n"
+            "💬 <i>Suhbatni yakunlash uchun pastdagi tugmani bosing yoki <b>/exit</b> deb yozing.</i>",
+            parse_mode="HTML",
+            reply_markup=kb
         )
 
     async def cmd_exit_assistant(message: Message, state: FSMContext):
         current_state = await state.get_state()
         if current_state == AssistantState.chatting.state:
             await state.clear()
+            from app.views.keyboards import persistent_menu_keyboard
+            
+            # Send removal/persistent menu message
             await message.answer(
-                "🏁 <b>Suhbat yakunlandi.</b> Asosiy menyuga qaytdingiz.\n"
-                "Yana yordam kerak bo'lsa, /assistant buyrug'ini yuboring.",
+                "🏁 <b>Suhbat yakunlandi.</b> Asosiy menyuga qaytdingiz.",
                 parse_mode="HTML",
+                reply_markup=persistent_menu_keyboard(is_owner(message))
+            )
+            
+            # Display inline main menu
+            await message.answer(
+                "Asosiy menyu:",
                 reply_markup=main_menu(is_owner(message))
             )
         else:
-            await message.answer("Siz AI Maslahatchi suhbatida emassiz. /assistant orqali suhbatni boshlang.")
+            await message.answer("Siz AI Maslahatchi suhbatida emassiz. Asosiy menyudagi <b>🤖 AI Maslahatchi</b> tugmasi orqali suhbatni boshlang.", parse_mode="HTML")
 
     async def handle_assistant_chat(message: Message, state: FSMContext):
         text = message.text or ""
         if not text:
             return
+            
+        # Check for exit options
+        if text == "🏁 Suhbatni yakunlash" or text == "/exit":
+            await cmd_exit_assistant(message, state)
+            return
+            
         if text.startswith("/"):
-            if text == "/exit":
-                await cmd_exit_assistant(message, state)
-            elif text.startswith("/start"):
+            if text.startswith("/start"):
                 await state.clear()
                 name = message.from_user.first_name or "Foydalanuvchi"
                 uid = message.from_user.id
                 if c.users.is_registered(uid):
+                    from app.views.keyboards import persistent_menu_keyboard
                     await message.answer(
-                        f"🤖 <b>Asosiy menyuga qaytdingiz.</b>\n\nSuhbat yakunlandi. Yordam kerak bo'lsa, /assistant buyrug'ini yuboring.",
-                        reply_markup=main_menu(is_owner(message)),
+                        f"🤖 <b>Asosiy menyuga qaytdingiz.</b>",
+                        reply_markup=persistent_menu_keyboard(is_owner(message)),
                         parse_mode="HTML",
+                    )
+                    await message.answer(
+                        "Asosiy menyu:",
+                        reply_markup=main_menu(is_owner(message))
                     )
                 else:
                     from app.views.keyboards import phone_keyboard
@@ -360,3 +409,4 @@ def register(dp: Dispatcher, c: Container) -> None:
     dp.message.register(handle_document, F.document, F.chat.type == "private")
     dp.message.register(handle_private_photo, F.photo, F.chat.type == "private")
     dp.message.register(handle_message, F.chat.type == "private")
+    dp.callback_query.register(cb_assistant, F.data == "ai_assistant")

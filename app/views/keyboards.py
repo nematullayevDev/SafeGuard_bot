@@ -36,6 +36,7 @@ def main_menu(is_admin_user: bool = False) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="📊 Tarixim", callback_data="history"),
             InlineKeyboardButton(text="👥 Guruh Rejimi", callback_data="group_mode"),
         ],
+        [InlineKeyboardButton(text="🤖 AI Maslahatchi", callback_data="ai_assistant")],
         [InlineKeyboardButton(text="🌐 Taqiqlangan Saytlar", callback_data="banned_sites_main")],
         [
             InlineKeyboardButton(text="🛡️ Kiber-Viktorina", callback_data="quiz_main"),
