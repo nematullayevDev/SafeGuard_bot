@@ -18,6 +18,44 @@ import aiohttp
 logger = logging.getLogger(__name__)
 
 
+ACTIVE_MODEL = None
+
+
+async def get_active_model(api_key: str) -> str:
+    global ACTIVE_MODEL
+    if ACTIVE_MODEL:
+        return ACTIVE_MODEL
+
+    candidates = [
+        "gemini-3.5-flash",
+        "gemini-3.1-flash-lite",
+        "gemini-1.5-flash",
+        "gemini-pro"
+    ]
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=5) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    models = data.get("models", [])
+                    supported_names = [m["name"].split("/")[-1] for m in models if "generateContent" in m.get("supportedGenerationMethods", [])]
+                    for cand in candidates:
+                        if cand in supported_names:
+                            ACTIVE_MODEL = cand
+                            logger.info(f"Selected Gemini model from ListModels: {ACTIVE_MODEL}")
+                            return ACTIVE_MODEL
+                    if supported_names:
+                        ACTIVE_MODEL = supported_names[0]
+                        logger.info(f"Fallback to first available model: {ACTIVE_MODEL}")
+                        return ACTIVE_MODEL
+    except Exception as e:
+        logger.error(f"Error fetching models list: {e}")
+
+    ACTIVE_MODEL = candidates[0]
+    return ACTIVE_MODEL
+
+
 def _rate_limit_text() -> str:
     return (
         f"⏳ Juda ko'p so'rov!\n\n"
@@ -360,7 +398,8 @@ def register(dp: Dispatcher, c: Container) -> None:
                 await wait.edit_text("❌ Tizimda Gemini API kaliti topilmadi. Keyinroq qayta urinib ko'ring.")
                 return
 
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            model = await get_active_model(api_key)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
             prompt = (
                 "Siz SafeGuard kiber-xavfsizlik tahlilchisi va AI maslahatchisisiz. "
                 "Foydalanuvchining savoliga kiberxavfsizlik va O'zbekiston qonunchiligi nuqtai nazaridan batafsil, "
