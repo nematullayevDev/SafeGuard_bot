@@ -111,6 +111,77 @@ def register(dp: Dispatcher, c: Container) -> None:
                 )
                 return
 
+            if payload == "help_group":
+                guide_text = {
+                    "uz": (
+                        "📖 <b>SafeGuard — Guruh Himoyasi Qo'llanmasi</b>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "Guruhingiz kiberxavfsizligini ta'minlash uchun quyidagi amallarni bajaring:\n\n"
+                        "1️⃣ <b>Botni guruhga qo'shing</b> va unga <b>Admin (Administrator)</b> huquqini bering.\n"
+                        "2️⃣ Havolalar, fayllar va QR-kodlarni tekshirish avtomatik rejimda ishga tushadi.\n"
+                        "3️⃣ Guruh sozlamalarini boshqarish uchun guruh ichida <b>/settings</b> buyrug'ini yuboring.\n"
+                        "4️⃣ Guruh muloqot tilini o'zgartirish uchun guruh ichida <b>/lang</b> buyrug'ini bering.\n\n"
+                        "⚡ <b>Taqiqlangan kalit so'zlar (Keywords):</b>\n"
+                        "Guruh a'zolari yozishi taqiqlangan so'zlar ro'yxatini sozlang. Kimdir shu so'zlarni yozsa, xabari o'chiriladi va ogohlantirish beriladi.\n\n"
+                        "🔗 <b>Oq ro'yxat (Whitelist):</b>\n"
+                        "Siz ishonadigan saytlar (masalan: <code>google.com</code>, <code>my.gov.uz</code>) manzillarini kiriting. Bot ularni virus tahlilidan o'tkazmaydi.\n\n"
+                        "⚠️ <b>Ogohlantirish limiti (Warn Limit):</b>\n"
+                        "Foydalanuvchilar qonunbuzarlik qilganda necha marta ogohlantirish olgach guruhdan chiqarilishini belgilang (Odatiy: 3 marta)."
+                    ),
+                    "uz_cyr": (
+                        "📖 <b>SafeGuard — Гуруҳ Ҳимояси Қўлланмаси</b>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "Гуруҳингиз киберхавфсизлигини таъминлаш учун қуйидаги амалларни бажаринг:\n\n"
+                        "1️⃣ <b>Ботни гуруҳга қўшинг</b> ва унга <b>Админ (Администратор)</b> ҳуқуқини беринг.\n"
+                        "2️⃣ Ҳаволалар, файллар ва QR-кодларни текшириш автоматик режимда ишга тушади.\n"
+                        "3️⃣ Гуруҳ созламаларини бошқариш учун гуруҳ ичида <b>/settings</b> буйруғини юборинг.\n"
+                        "4️⃣ Гуруҳ мулоқот тилини ўзгартириш учун гуруҳ ичида <b>/lang</b> буйруғини беринг.\n\n"
+                        "⚡ <b>Тақиқланган калит сўзлар (Keywords):</b>\n"
+                        "Гуруҳ аъзолари ёзиши тақиқланган сўзлар рўйхатини созланг. Кимдир шу сўзларни ёзса, хабари ўчирилади ва огоҳлантириш берилади.\n\n"
+                        "🔗 <b>Оқ рўйхат (Whitelist):</b>\n"
+                        "Сиз ишонадиган сайтлар (маслан: <code>google.com</code>, <code>my.gov.uz</code>) манзилларини киритинг. Бот уларни вирус таҳлилидан ўтказмайди.\n\n"
+                        "⚠️ <b>Огоҳлантириш лимити (Warn Limit):</b>\n"
+                        "Фойдаланувчилар қонунбузарлик қилганда неча марта огоҳлантириш олгач гуруҳдан чиқарилишини белгиланг (Одатий: 3 марта)."
+                    ),
+                    "ru": (
+                        "📖 <b>SafeGuard — Инструкция по защите групп</b>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "Для обеспечения кибербезопасности вашей группы выполните следующие шаги:\n\n"
+                        "1️⃣ <b>Добавьте бота в группу</b> и предоставьте ему права <b>Администратора</b>.\n"
+                        "2️⃣ Проверка ссылок, файлов и QR-кодов запустится автоматически.\n"
+                        "3️⃣ Для настройки защиты отправьте команду <b>/settings</b> внутри группы.\n"
+                        "4️⃣ Для изменения языка группы отправьте команду <b>/lang</b> внутри группы.\n\n"
+                        "⚡ <b>Запрещенные ключевые слова (Keywords):</b>\n"
+                        "Настройте список слов, которые запрещено писать участникам. При их обнаружении сообщение удаляется, а пользователю выдается предупреждение.\n\n"
+                        "🔗 <b>Белый список (Whitelist):</b>\n"
+                        "Добавьте доверенные домены (например: <code>google.com</code>, <code>my.gov.uz</code>). Бот не будет блокировать их при отправке.\n\n"
+                        "⚠️ <b>Лимит предупреждений (Warn Limit):</b>\n"
+                        "Укажите, после скольких предупреждений нарушитель будет заблокирован в группе (По умолчанию: 3)."
+                    ),
+                    "en": (
+                        "📖 <b>SafeGuard — Group Protection Guide</b>\n"
+                        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        "To secure your group, follow these simple steps:\n\n"
+                        "1️⃣ <b>Add the bot to your group</b> and grant it <b>Admin privileges</b>.\n"
+                        "2️⃣ File, link, and QR-code scans will start running automatically.\n"
+                        "3️⃣ Send the <b>/settings</b> command inside the group to customize protection.\n"
+                        "4️⃣ Send the <b>/lang</b> command inside the group to change communication language.\n\n"
+                        "⚡ <b>Banned Keywords:</b>\n"
+                        "Configure forbidden words. Messages containing these will be deleted and the sender warned.\n\n"
+                        "🔗 <b>Whitelisted Domains:</b>\n"
+                        "Add trusted domains (e.g. <code>google.com</code>, <code>my.gov.uz</code>). The bot will bypass scans for these links.\n\n"
+                        "⚠️ <b>Warnings Limit:</b>\n"
+                        "Configure the maximum warnings allowed before a member is banned (Default: 3)."
+                    )
+                }.get(lang, "")
+                
+                await message.answer(
+                    guide_text,
+                    reply_markup=keyboards.go_start_kb(lang),
+                    parse_mode="HTML",
+                )
+                return
+
             await message.answer(
                 get_text("welcome", lang).format(name=name),
                 reply_markup=main_menu(is_owner(message), lang),
@@ -132,7 +203,7 @@ def register(dp: Dispatcher, c: Container) -> None:
     # Til tanlandi -> Telefon raqam so'rash
     # ──────────────────────────────────────────────────────────
     async def handle_set_lang_callback(call: CallbackQuery, state: FSMContext):
-        lang = call.data.split("_")[1]
+        lang = call.data[8:]  # setlang_ length is 8
         uid = call.from_user.id
         name = call.from_user.first_name or "Foydalanuvchi"
         
@@ -267,15 +338,83 @@ def register(dp: Dispatcher, c: Container) -> None:
                       "Этот интерактивный тест создан для проверки и повышения ваших базовых знаний в области кибербезопасности.\n\n"
                       "📝 Тест состоит из <b>5 профессиональных вопросов</b>. Для успешного прохождения нужно правильно ответить минимум на <b>4 вопроса</b>.\n\n"
                       "🎉 После успешного прохождения теста в вашем профиле и списке участников появится специальный знак **`🛡️`**!\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-                      "en": "🛡️ <b>SafeGuard Cyber-Literacy Quiz</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                            "This interactive test is designed to verify and improve your basic cybersecurity knowledge.\n\n"
-                            "📝 The quiz consists of <b>5 professional questions</b>. You must answer at least <b>4 questions</b> correctly to pass.\n\n"
-                            "🎉 After passing the quiz, a special **`🛡️`** badge will appear next to your profile in the users list!\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                "en": "🛡️ <b>SafeGuard Cyber-Literacy Quiz</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                      "This interactive test is designed to verify and improve your basic cybersecurity knowledge.\n\n"
+                      "📝 The quiz consists of <b>5 professional questions</b>. You must answer at least <b>4 questions</b> correctly to pass.\n\n"
+                      "🎉 After passing the quiz, a special **`🛡️`** badge will appear next to your profile in the users list!\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
             }.get(lang, "")
             
             await message.answer(
                 quiz_title,
                 reply_markup=keyboards.quiz_main_menu(quiz_passed, lang),
+                parse_mode="HTML",
+            )
+        elif payload == "help_group":
+            guide_text = {
+                "uz": (
+                    "📖 <b>SafeGuard — Guruh Himoyasi Qo'llanmasi</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Guruhingiz kiberxavfsizligini ta'minlash uchun quyidagi amallarni bajaring:\n\n"
+                    "1️⃣ <b>Botni guruhga qo'shing</b> va unga <b>Admin (Administrator)</b> huquqini bering.\n"
+                    "2️⃣ Havolalar, fayllar va QR-kodlarni tekshirish avtomatik rejimda ishga tushadi.\n"
+                    "3️⃣ Guruh sozlamalarini boshqarish uchun guruh ichida <b>/settings</b> buyrug'ini yuboring.\n"
+                    "4️⃣ Guruh muloqot tilini o'zgartirish uchun guruh ichida <b>/lang</b> buyrug'ini bering.\n\n"
+                    "⚡ <b>Taqiqlangan kalit so'zlar (Keywords):</b>\n"
+                    "Guruh a'zolari yozishi taqiqlangan so'zlar ro'yxatini sozlang. Kimdir shu so'zlarni yozsa, xabari o'chiriladi va ogohlantirish beriladi.\n\n"
+                    "🔗 <b>Oq ro'yxat (Whitelist):</b>\n"
+                    "Siz ishonadigan saytlar (masalan: <code>google.com</code>, <code>my.gov.uz</code>) manzillarini kiriting. Bot ularni virus tahlilidan o'tkazmaydi.\n\n"
+                    "⚠️ <b>Ogohlantirish limiti (Warn Limit):</b>\n"
+                    "Foydalanuvchilar qonunbuzarlik qilganda necha marta ogohlantirish olgach guruhdan chiqarilishini belgilang (Odatiy: 3 marta)."
+                ),
+                "uz_cyr": (
+                    "📖 <b>SafeGuard — Гуруҳ Ҳимояси Қўлланмаси</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Гуруҳингиз киберхавфсизлигини таъминлаш учун қуйидаги амалларни бажаринг:\n\n"
+                    "1️⃣ <b>Ботни гуруҳга қўшинг</b> ва унга <b>Админ (Администратор)</b> ҳуқуқини беринг.\n"
+                    "2️⃣ Ҳаволалар, файллар ва QR-кодларни текшириш автоматик режимда ишга тушади.\n"
+                    "3️⃣ Гуруҳ созламаларини бошқариш учун гуруҳ ичида <b>/settings</b> буйруғини юборинг.\n"
+                    "4️⃣ Гуруҳ мулоқот тилини ўзгартириш uchun гуруҳ ичида <b>/lang</b> буйруғини беринг.\n\n"
+                    "⚡ <b>Тақиқланган калит сўзлар (Keywords):</b>\n"
+                    "Гуруҳ аъзолари ёзиши тақиқланган сўзлар рўйхатини созланг. Кимдир шу сўзларни ёзса, хабари ўчирилади ва огоҳлантириш берилади.\n\n"
+                    "🔗 <b>Оқ рўйхат (Whitelist):</b>\n"
+                    "Сиз ишонадиган сайтлар (маслан: <code>google.com</code>, <code>my.gov.uz</code>) манзилларини киритинг. Бот уларни вирус таҳлилидан ўтказмайди.\n\n"
+                    "⚠️ <b>Огоҳлантириш лимити (Warn Limit):</b>\n"
+                    "Фойдаланувчилар қонунбузарлик қилганда неча марта огоҳлантириш олгач гуруҳдан чиқарилишини белгиланг (Одатий: 3 марта)."
+                ),
+                "ru": (
+                    "📖 <b>SafeGuard — Инструкция по защите групп</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "Для обеспечения кибербезопасности вашей группы выполните следующие шаги:\n\n"
+                    "1️⃣ <b>Добавьте бота в группу</b> и предоставьте ему права <b>Администратора</b>.\n"
+                    "2️⃣ Проверка ссылок, файлов и QR-кодов запустится автоматически.\n"
+                    "3️⃣ Для настройки защиты отправьте команду <b>/settings</b> внутри группы.\n"
+                    "4️⃣ Для изменения языка группы отправьте команду <b>/lang</b> внутри группы.\n\n"
+                    "⚡ <b>Запрещенные ключевые слова (Keywords):</b>\n"
+                    "Настройте список слов, которые запрещено писать участникам. При их обнаружении сообщение удаляется, а пользователю выдается предупреждение.\n\n"
+                    "🔗 <b>Белый список (Whitelist):</b>\n"
+                    "Добавьте доверенные домены (например: <code>google.com</code>, <code>my.gov.uz</code>). Бот не будет блокировать их при отправке.\n\n"
+                    "⚠️ <b>Лимит предупреждений (Warn Limit):</b>\n"
+                    "Укажите, после скольких предупреждений нарушитель будет заблокирован в группе (По умолчанию: 3)."
+                ),
+                "en": (
+                    "📖 <b>SafeGuard — Group Protection Guide</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "To secure your group, follow these simple steps:\n\n"
+                    "1️⃣ <b>Add the bot to your group</b> and grant it <b>Admin privileges</b>.\n"
+                    "2️⃣ File, link, and QR-code scans will start running automatically.\n"
+                    "3️⃣ Send the <b>/settings</b> command inside the group to customize protection.\n"
+                    "4️⃣ Send the <b>/lang</b> command inside the group to change communication language.\n\n"
+                    "⚡ <b>Banned Keywords:</b>\n"
+                    "Configure forbidden words. Messages containing these will be deleted and the sender warned.\n\n"
+                    "🔗 <b>Whitelisted Domains:</b>\n"
+                    "Add trusted domains (e.g. <code>google.com</code>, <code>my.gov.uz</code>). The bot will bypass scans for these links.\n\n"
+                    "⚠️ <b>Warnings Limit:</b>\n"
+                    "Configure the maximum warnings allowed before a member is banned (Default: 3)."
+                )
+            }.get(lang, "")
+            await message.answer(
+                guide_text,
+                reply_markup=keyboards.go_start_kb(lang),
                 parse_mode="HTML",
             )
         else:

@@ -185,7 +185,19 @@ def register(dp: Dispatcher, c: Container) -> None:
             c.user_settings.set_group_mode(chat.id, True)
 
             try:
-                await bot.send_message(chat.id, get_text("group_added", default_lang), parse_mode="HTML")
+                from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+                btn_lbl = {
+                    "uz": "📖 Yo'riqnoma / Qo'llanma",
+                    "uz_cyr": "📖 Йўриқнома / Қўлланма",
+                    "ru": "📖 Инструкция / Руководство",
+                    "en": "📖 User Guide / Manual"
+                }.get(default_lang, "📖 Guide")
+                
+                kb = InlineKeyboardMarkup(inline_keyboard=[[
+                    InlineKeyboardButton(text=btn_lbl, url=f"https://t.me/{settings.bot_username}?start=help_group")
+                ]])
+                
+                await bot.send_message(chat.id, get_text("group_added", default_lang), parse_mode="HTML", reply_markup=kb)
             except Exception as e:
                 logger.warning("Guruh xush kelibsiz xabari yuborilmadi: %s", e)
 
