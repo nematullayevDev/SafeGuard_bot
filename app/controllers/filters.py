@@ -39,7 +39,9 @@ async def is_chat_admin(message: Message) -> bool:
 async def ensure_registered(message: Message, container: Container) -> bool:
     if container.users.is_registered(message.from_user.id):
         return True
-    await message.answer(REGISTER_FIRST, reply_markup=go_start_kb())
+    lang = container.users.get_language(message.from_user.id)
+    from app.views.texts import get_text
+    await message.answer(get_text("register_first", lang), reply_markup=go_start_kb(lang))
     return False
 
 

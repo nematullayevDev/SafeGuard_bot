@@ -9,11 +9,7 @@ from app.container import Container
 from app.core.config import settings
 from app.core.bot import bot
 from app.views.keyboards import channel_subscribe_kb, go_start_kb
-from app.views.texts import (
-    CHANNEL_SUBSCRIBE_REQUIRED,
-    CHANNEL_SUBSCRIBE_FAIL_ALERT,
-    REGISTER_FIRST,
-)
+from app.views.texts import get_text
 
 logger = logging.getLogger(__name__)
 
@@ -80,24 +76,27 @@ class SubscriptionMiddleware(BaseMiddleware):
                 parts = event.text.split()
                 if parts and parts[0] == "/start":
                     is_bypass = True
-            elif isinstance(event, CallbackQuery) and event.data in ("go_start", "check_subscription"):
+            elif isinstance(event, CallbackQuery) and (event.data in ("go_start", "check_subscription") or event.data.startswith("setlang_")):
                 is_bypass = True
 
-            # Get current FSM state (e.g. if the user is in waiting_phone registration state)
+            # Get current FSM state
             state = data.get("state")
             state_str = await state.get_state() if state else None
-            is_registering = state_str == "Registration:waiting_phone"
+            is_registering = state_str in ("Registration:waiting_lang", "Registration:waiting_phone")
 
             # If not in registration flow or bypass:
             if not is_bypass and not is_registering:
+                lang = self.container.users.get_language(user.id)
+                
                 # 1. Check if user is registered in database
                 is_registered = self.container.users.is_registered(user.id)
                 if not is_registered:
                     # Unregistered user trying to click old buttons or send messages
+                    reg_first = get_text("register_first", lang)
                     if isinstance(event, Message):
-                        await event.answer(REGISTER_FIRST, reply_markup=go_start_kb())
+                        await event.answer(reg_first, reply_markup=go_start_kb(lang))
                     elif isinstance(event, CallbackQuery):
-                        await event.answer(REGISTER_FIRST, show_alert=True)
+                        await event.answer(reg_first, show_alert=True)
                     return  # Halt processing
 
                 # 2. Registered user: check channel subscription
@@ -106,13 +105,13 @@ class SubscriptionMiddleware(BaseMiddleware):
                     name = user.first_name or "Foydalanuvchi"
                     if isinstance(event, Message):
                         await event.answer(
-                            CHANNEL_SUBSCRIBE_REQUIRED.format(name=name),
-                            reply_markup=channel_subscribe_kb(settings.channel_username),
+                            get_text("channel_subscribe_required", lang).format(name=name),
+                            reply_markup=channel_subscribe_kb(settings.channel_username, lang),
                             parse_mode="HTML",
                         )
                     elif isinstance(event, CallbackQuery):
                         await event.answer(
-                            CHANNEL_SUBSCRIBE_FAIL_ALERT.format(channel=settings.channel_username),
+                            get_text("channel_subscribe_fail_alert", lang).format(channel=settings.channel_username),
                             show_alert=True,
                         )
                     return  # Halt processing
