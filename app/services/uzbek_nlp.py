@@ -4,6 +4,7 @@ import logging
 import re
 from typing import Any, Dict, Optional, Tuple
 import aiohttp
+from app.repositories import AiCacheRepository
 
 logger = logging.getLogger(__name__)
 
@@ -229,8 +230,9 @@ def is_fuzzy_match(word: str, keyword: str) -> bool:
 
 
 class UzbekNLPService:
-    def __init__(self, gemini_api_key: Optional[str] = None) -> None:
+    def __init__(self, gemini_api_key: Optional[str] = None, ai_cache: Optional[AiCacheRepository] = None) -> None:
         self._api_key = gemini_api_key
+        self._ai_cache = ai_cache
         
         # High-fidelity keyword lists
         self._extremism_keywords = {
@@ -353,56 +355,97 @@ class UzbekNLPService:
 
         return False, None, None
 
-    async def analyze_text(self, text: str) -> Dict[str, Any]:
-        """Analyzes text using Gemini AI model, with local fallback."""
+    async def analyze_text(self, text: str, allow_ai: bool = True) -> Dict[str, Any]:
+        """Analyzes text using Gemini AI model, with local fallback and caching."""
         if not text or len(text.strip()) < 2:
             return {
                 "is_violation": False,
                 "category": None,
-                "reason": "Matn tahlil qilish uchun juda qisqa."
+                "reason": "Matn tahlil qilish uchun juda qisqa.",
+                "used_ai": False
             }
 
-        # If API key is available, use Gemini API
-        if self._api_key:
-            try:
-                from app.core.gemini import call_gemini_api
-                prompt = (
-                    "Siz SafeGuard kiber-xavfsizlik tahlilchisisiz. "
-                    "Quyidagi matnni tahlil qiling va unda ushbu to'rtta jinoyat yoki qonunbuzarlik belgilari borligini aniqlang:\n"
-                    "- extremism: Oliy sud taqiqlagan radikal diniy g'oyalar, shiorlar, ekstremistik guruhlar (ISID, Hizb ut-Tahrir va b.) targ'iboti.\n"
-                    "- drugs: Sintetik giyohvand moddalar (mef, sol, kristall), taqiqlangan dorilar sotilishi, kladmenlik yoki kurirlik yashirin targ'iboti.\n"
-                    "- bullying: Guruh ichidagi shaxsga qaratilgan og'ir haqorat, sharmanda qilish yoki o'ldirish/zo'ravonlik tahdidlari.\n"
-                    "- cybercrime: Kiberfiribgarlik, soxta aksiyalar, plastik karta yoki SMS kodlarni o'g'irlashga qaratilgan fishing xabarlar va firibgarlik urinishlari.\n\n"
-                    f"Tahlil qilinuvchi matn: \"{text}\"\n\n"
-                    "Javobni faqat va faqat quyidagi tuzilmaga ega JSON formatida qaytaring, boshqa hech narsa yozmang:\n"
-                    "{\n"
-                    "  \"is_violation\": true yoki false,\n"
-                    "  \"category\": \"extremism\" yoki \"drugs\" yoki \"bullying\" yoki \"cybercrime\" yoki null,\n"
-                    "  \"reason\": \"Flagged qilinish sababi yoki xavfsizligi haqida o'zbek tilida tahliliy izoh (maksimal 1-2 ta gap)\"\n"
-                    "}"
-                )
-                
-                content_text = await call_gemini_api(self._api_key, prompt, response_mime_type="application/json")
-                
-                # Strip markdown code block notation if present
-                if content_text.startswith("```"):
-                    content_text = re.sub(r"^```(?:json)?\s*", "", content_text)
-                    content_text = re.sub(r"\s*```$", "", content_text)
-                    
-                result = json.loads(content_text.strip())
-                logger.info("AI NLP tahlil muvaffaqiyatli yakunlandi.")
-                return {
-                    "is_violation": bool(result.get("is_violation", False)),
-                    "category": result.get("category"),
-                    "reason": result.get("reason", "AI tomonidan tahlil qilindi.")
-                }
-            except Exception as e:
-                logger.error(f"Gemini API bilan bog'lanishda xatolik: {e}. Lokal rejimga o'tiladi.")
-
-        # Fallback to local high-fidelity rules engine
+        # 1-qadam: avval har doim lokal tekshiruv (bepul, tez)
         is_viol, cat, reason = self.analyze_local(text)
-        return {
-            "is_violation": is_viol,
-            "category": cat,
-            "reason": reason or "Matnda hech qanday shubhali qonunbuzarlik belgilari aniqlanmadi (Lokal tahlil)."
-        }
+        if is_viol:
+            return {
+                "is_violation": True,
+                "category": cat,
+                "reason": reason,
+                "used_ai": False
+            }
+
+        # 2-qadam: agar AI ruxsat etilmagan bo'lsa (masalan Free guruh/limit tugagan), shu yerda to'xtaymiz
+        if not allow_ai or not self._api_key:
+            return {
+                "is_violation": False,
+                "category": None,
+                "reason": "Matnda hech qanday shubhali qonunbuzarlik belgilari aniqlanmadi (Lokal tahlil).",
+                "used_ai": False
+            }
+
+        # 3-qadam: faqat "chegara holat" bo'lsa AI'ga yuboriladi
+        if len(text.strip().split()) < 5:
+            return {
+                "is_violation": False,
+                "category": None,
+                "reason": "Qisqa va zararsiz matn (Lokal tahlil).",
+                "used_ai": False
+            }
+
+        normalized = self.normalize_text(text)
+        text_hash = self._ai_cache.hash_text(normalized) if self._ai_cache else None
+
+        if text_hash and self._ai_cache:
+            cached = self._ai_cache.get(text_hash)
+            if cached:
+                return {
+                    "is_violation": cached["is_violation"],
+                    "category": cached["category"],
+                    "reason": cached["reason"],
+                    "used_ai": False
+                }
+
+        try:
+            from app.core.gemini import call_gemini_api
+            prompt = (
+                "Siz SafeGuard kiber-xavfsizlik tahlilchisisiz. "
+                "Quyidagi matnni tahlil qiling va unda ushbu to'rtta jinoyat yoki qonunbuzarlik belgilari borligini aniqlang:\n"
+                "- extremism: Oliy sud taqiqlagan radikal diniy g'oyalar, shiorlar, ekstremistik guruhlar (ISID, Hizb ut-Tahrir va b.) targ'iboti.\n"
+                "- drugs: Sintetik giyohvand moddalar (mef, sol, kristall), taqiqlangan dorilar sotilishi, kladmenlik yoki kurirlik yashirin targ'iboti.\n"
+                "- bullying: Guruh ichidagi shaxsga qaratilgan og'ir haqorat, sharmanda qilish yoki o'ldirish/zo'ravonlik tahdidlari.\n"
+                "- cybercrime: Kiberfiribgarlik, soxta aksiyalar, plastik karta yoki SMS kodlarni o'g'irlashga qaratilgan fishing xabarlar va firibgarlik urinishlari.\n\n"
+                f"Tahlil qilinuvchi matn: \"{text}\"\n\n"
+                "Javobni faqat va faqat quyidagi tuzilmaga ega JSON formatida qaytaring, boshqa hech narsa yozmang:\n"
+                "{\n"
+                "  \"is_violation\": true yoki false,\n"
+                "  \"category\": \"extremism\" yoki \"drugs\" yoki \"bullying\" yoki \"cybercrime\" yoki null,\n"
+                "  \"reason\": \"Flagged qilinish sababi yoki xavfsizligi haqida o'zbek tilida tahliliy izoh (maksimal 1-2 ta gap)\"\n"
+                "}"
+            )
+            
+            content_text = await call_gemini_api(self._api_key, prompt, response_mime_type="application/json")
+            
+            if content_text.startswith("```"):
+                content_text = re.sub(r"^```(?:json)?\s*", "", content_text)
+                content_text = re.sub(r"\s*```$", "", content_text)
+                
+            result = json.loads(content_text.strip())
+            final = {
+                "is_violation": bool(result.get("is_violation", False)),
+                "category": result.get("category"),
+                "reason": result.get("reason", "AI tomonidan tahlil qilindi."),
+                "used_ai": True
+            }
+            if text_hash and self._ai_cache:
+                self._ai_cache.set(text_hash, final["is_violation"], final["category"], final["reason"])
+            logger.info("AI NLP tahlil muvaffaqiyatli yakunlandi.")
+            return final
+        except Exception as e:
+            logger.error(f"Gemini API bilan bog'lanishda xatolik: {e}. Lokal rejimga o'tiladi.")
+            return {
+                "is_violation": False,
+                "category": None,
+                "reason": "Matnda hech qanday shubhali qonunbuzarlik belgilari aniqlanmadi (Lokal tahlil, AI vaqtincha topilmadi).",
+                "used_ai": False
+            }

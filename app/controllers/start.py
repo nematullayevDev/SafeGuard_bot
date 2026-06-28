@@ -182,6 +182,9 @@ def register(dp: Dispatcher, c: Container) -> None:
                 )
                 return
 
+            plan = c.subscriptions.get_user_plan(uid)
+            if plan["plan"] == "premium":
+                name = f"💎 {name}"
             await message.answer(
                 get_text("welcome", lang).format(name=name),
                 reply_markup=main_menu(is_owner(message), lang),
@@ -418,6 +421,9 @@ def register(dp: Dispatcher, c: Container) -> None:
                 parse_mode="HTML",
             )
         else:
+            plan = c.subscriptions.get_user_plan(uid)
+            if plan["plan"] == "premium":
+                name = f"💎 {name}"
             await message.answer(
                 get_text("welcome", lang).format(name=name),
                 reply_markup=main_menu(is_owner(message), lang),
@@ -445,6 +451,9 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
             await asyncio.sleep(0.5)
             # Menyuga yo'naltirish
+            plan = c.subscriptions.get_user_plan(uid)
+            if plan["plan"] == "premium":
+                name = f"💎 {name}"
             await call.message.answer(
                 get_text("welcome", lang).format(name=name),
                 reply_markup=main_menu(is_owner(call), lang),

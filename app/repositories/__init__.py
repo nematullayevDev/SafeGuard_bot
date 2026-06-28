@@ -8,9 +8,13 @@ from app.repositories.stats_repo import StatsRepository
 from app.repositories.user_repo import UserRepository
 from app.repositories.warning_repo import WarningRepository
 from app.repositories.forensic_repo import ForensicRepository
+from app.repositories.url_cache_repo import UrlCacheRepository
+from app.repositories.ai_cache_repo import AiCacheRepository
+from app.repositories.subscription_repo import SubscriptionRepository
 
 __all__ = [
     "BannedSiteRepository", "BlacklistRepository", "GroupRepository",
     "HistoryRepository", "SettingsRepository", "StatsRepository",
     "UserRepository", "WarningRepository", "ForensicRepository", "init_schema",
+    "UrlCacheRepository", "AiCacheRepository", "SubscriptionRepository",
 ]

@@ -36,8 +36,12 @@ def register(dp: Dispatcher, c: Container) -> None:
     async def home(call: CallbackQuery):
         uid = call.from_user.id
         lang = c.users.get_language(uid)
+        name = call.from_user.first_name or "Foydalanuvchi"
+        plan = c.subscriptions.get_user_plan(uid)
+        if plan["plan"] == "premium":
+            name = f"💎 {name}"
         await call.message.edit_text(
-            get_text("welcome", lang).format(name=call.from_user.first_name or "Foydalanuvchi"),
+            get_text("welcome", lang).format(name=name),
             reply_markup=main_menu(is_owner(call), lang),
             parse_mode="HTML",
         )

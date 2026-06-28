@@ -28,3 +28,8 @@ class GroupSettingsState(StatesGroup):
     waiting_keywords = State()
     waiting_whitelist = State()
 
+
+class AdminState(StatesGroup):
+    waiting_premium_user = State()
+
+

@@ -135,6 +135,60 @@ def init_schema() -> None:
         seed_banned_sites(c)
         # seed_forensics(c)
 
+        # 1. URL scan cache
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS url_scan_cache (
+                url TEXT PRIMARY KEY,
+                verdict TEXT,
+                malicious INTEGER,
+                suspicious INTEGER,
+                harmless INTEGER,
+                undetected INTEGER,
+                checked_at TEXT
+            )
+        """)
+        # 2. AI text classification cache
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS ai_text_cache (
+                text_hash TEXT PRIMARY KEY,
+                is_violation INTEGER,
+                category TEXT,
+                reason TEXT,
+                cached_at TEXT,
+                hit_count INTEGER DEFAULT 1
+            )
+        """)
+        # 3. Group subscriptions
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS group_subscriptions (
+                chat_id INTEGER PRIMARY KEY,
+                plan TEXT DEFAULT 'free',
+                expires_at TEXT,
+                warning_sent INTEGER DEFAULT 0
+            )
+        """)
+        # 4. User subscriptions
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS user_subscriptions (
+                user_id INTEGER PRIMARY KEY,
+                plan TEXT DEFAULT 'free',
+                expires_at TEXT,
+                warning_sent INTEGER DEFAULT 0
+            )
+        """)
+        # 5. AI quota usage
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS ai_quota_usage (
+                chat_id INTEGER,
+                usage_date TEXT,
+                call_count INTEGER DEFAULT 0,
+                PRIMARY KEY (chat_id, usage_date)
+            )
+        """)
+        
+        c.execute("CREATE INDEX IF NOT EXISTS idx_url_cache_checked_at ON url_scan_cache(checked_at)")
+        c.execute("CREATE INDEX IF NOT EXISTS idx_ai_cache_cached_at ON ai_text_cache(cached_at)")
+
         _add_column_if_not_exists(c, "user_settings", "filter_links", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "user_settings", "filter_files", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "user_settings", "filter_nlp", "INTEGER DEFAULT 1")

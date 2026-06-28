@@ -505,7 +505,15 @@ def register(dp: Dispatcher, c: Container) -> None:
 
         # 3. NLP check
         if filters.get("filter_nlp", True):
-            nlp_res = await c.nlp.analyze_text(text)
+            plan = c.subscriptions.get_group_plan(chat_id)
+            daily_limit = 2000 if plan["plan"] == "premium" else 50
+            usage_today = c.subscriptions.get_ai_usage_today(chat_id)
+            allow_ai = usage_today < daily_limit
+
+            nlp_res = await c.nlp.analyze_text(text, allow_ai=allow_ai)
+            if nlp_res.get("used_ai", False):
+                c.subscriptions.increment_ai_usage(chat_id)
+
             if nlp_res["is_violation"]:
                 await _safe_delete(message)
                 category = nlp_res["category"] or "other"

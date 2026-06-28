@@ -85,6 +85,9 @@ def main_menu(is_admin_user: bool = False, lang: str = "uz") -> InlineKeyboardMa
             InlineKeyboardButton(text=btn_lang, callback_data="change_language_private"),
         ],
     ]
+    btn_premium = {"uz": "💎 Premium", "uz_cyr": "💎 Премиум", "ru": "💎 Премиум", "en": "💎 Premium"}.get(lang, "💎 Premium")
+    rows.append([InlineKeyboardButton(text=btn_premium, callback_data="open_premium")])
+
     if is_admin_user:
         rows.append([InlineKeyboardButton(text=btn_admin, callback_data="admin_panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -106,6 +109,7 @@ def admin_panel_menu() -> InlineKeyboardMarkup:
             InlineKeyboardButton(text="💾 Baza Zaxirasi", callback_data="admin_backup"),
         ],
         [InlineKeyboardButton(text="🚫 Taqiqlangan Saytlar", callback_data="admin_banned_sites")],
+        [InlineKeyboardButton(text="💎 Premium Berish", callback_data="admin_premium_give")],
         [InlineKeyboardButton(text="🔙 Orqaga", callback_data="main_menu")],
     ])
 

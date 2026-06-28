@@ -4,7 +4,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from app.models import HistoryEntry, ItemType, ScanResult, ScanVerdict
-from app.repositories import BlacklistRepository, HistoryRepository
+from app.repositories import BlacklistRepository, HistoryRepository, UrlCacheRepository
 from app.services.virustotal_service import VirusTotalService
 
 logger = logging.getLogger(__name__)
@@ -241,10 +241,12 @@ def _classify(mal: int, sus: int) -> ScanVerdict:
 class ScanService:
     def __init__(self, vt: VirusTotalService,
                  history_repo: HistoryRepository,
-                 blacklist_repo: BlacklistRepository) -> None:
+                 blacklist_repo: BlacklistRepository,
+                 url_cache_repo: UrlCacheRepository) -> None:
         self._vt = vt
         self._history = history_repo
         self._blacklist = blacklist_repo
+        self._url_cache = url_cache_repo
 
     async def scan_url(self, user_id: int, url: str) -> ScanResult:
         try:
@@ -253,8 +255,19 @@ class ScanService:
             if phish_result:
                 result = phish_result
             else:
-                raw = await self._vt.scan_url(url)
-                result = self._parse_url_result(url, raw)
+                cached = self._url_cache.get(url)
+                if cached:
+                    result = ScanResult(
+                        item_type=ItemType.LINK, value=url,
+                        verdict=ScanVerdict(cached["verdict"]),
+                        malicious=cached["malicious"], suspicious=cached["suspicious"],
+                        harmless=cached["harmless"], undetected=cached["undetected"],
+                    )
+                else:
+                    raw = await self._vt.scan_url(url)
+                    result = self._parse_url_result(url, raw)
+                    self._url_cache.set(url, result.verdict.value, result.malicious,
+                                         result.suspicious, result.harmless, result.undetected)
         except Exception as e:
             logger.exception("URL scan xato: %s", url)
             return ScanResult(item_type=ItemType.LINK, value=url,

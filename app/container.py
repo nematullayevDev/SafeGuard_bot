@@ -7,6 +7,7 @@ from app.repositories import (
     BannedSiteRepository, BlacklistRepository, GroupRepository,
     HistoryRepository, SettingsRepository, StatsRepository,
     UserRepository, WarningRepository, ForensicRepository,
+    UrlCacheRepository, AiCacheRepository, SubscriptionRepository,
 )
 from app.services import (
     BroadcastService, ExportService, ModerationService,
@@ -27,6 +28,9 @@ class Container:
     banned_sites: BannedSiteRepository
     stats: StatsRepository
     forensics: ForensicRepository
+    url_cache: UrlCacheRepository
+    ai_cache: AiCacheRepository
+    subscriptions: SubscriptionRepository
 
     # Services
     rate_limiter: RateLimiter
@@ -50,21 +54,25 @@ def build_container() -> Container:
     banned_sites = BannedSiteRepository()
     stats = StatsRepository()
     forensics = ForensicRepository()
+    url_cache = UrlCacheRepository()
+    ai_cache = AiCacheRepository()
+    subscriptions = SubscriptionRepository()
 
     rate_limiter = RateLimiter(settings.rate_limit_max, settings.rate_limit_window)
     spam = SpamDetector(settings.spam_keywords)
     vt = VirusTotalService(settings.vt_api_key)
-    scanner = ScanService(vt, history, blacklist)
+    scanner = ScanService(vt, history, blacklist, url_cache)
     moderator = ModerationService(bot, warnings, settings.max_warnings)
     broadcaster = BroadcastService(bot, users)
     exporter = ExportService()
-    nlp = UzbekNLPService(settings.gemini_api_key)
+    nlp = UzbekNLPService(settings.gemini_api_key, ai_cache)
     state_sync = StateSyncService(banned_sites, blacklist)
 
     return Container(
         users=users, blacklist=blacklist, user_settings=user_settings,
         history=history, warnings=warnings, groups=groups,
         banned_sites=banned_sites, stats=stats, forensics=forensics,
+        url_cache=url_cache, ai_cache=ai_cache, subscriptions=subscriptions,
         rate_limiter=rate_limiter, spam=spam, vt=vt, scanner=scanner,
         moderator=moderator, broadcaster=broadcaster, exporter=exporter,
         nlp=nlp, state_sync=state_sync,
