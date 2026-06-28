@@ -15,17 +15,18 @@ class UserRepository(BaseRepository):
             registered_at=row[4] or "",
             quiz_passed=row[5] if len(row) > 5 else 0,
             quiz_score=row[6] if len(row) > 6 else 0,
+            language=row[7] if len(row) > 7 else "uz",
         )
 
-    def save(self, user_id: int, first_name: str, username: str, phone: str) -> None:
+    def save(self, user_id: int, first_name: str, username: str, phone: str, language: str = "uz") -> None:
         with get_conn() as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO users (user_id, first_name, username, phone, registered_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT OR REPLACE INTO users (user_id, first_name, username, phone, registered_at, language)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 (user_id, first_name, username or "", phone,
-                 datetime.now().strftime("%d.%m.%Y %H:%M")),
+                 datetime.now().strftime("%d.%m.%Y %H:%M"), language),
             )
 
     def is_registered(self, user_id: int) -> bool:
@@ -37,7 +38,7 @@ class UserRepository(BaseRepository):
     def all(self) -> list[User]:
         with get_conn() as conn:
             rows = conn.execute(
-                "SELECT user_id, first_name, username, phone, registered_at, quiz_passed, quiz_score "
+                "SELECT user_id, first_name, username, phone, registered_at, quiz_passed, quiz_score, language "
                 "FROM users ORDER BY registered_at DESC"
             ).fetchall()
         return [self._row_to_user(r) for r in rows]
@@ -62,3 +63,12 @@ class UserRepository(BaseRepository):
         if row:
             return {"passed": bool(row[0]), "score": row[1]}
         return {"passed": False, "score": 0}
+
+    def get_language(self, user_id: int) -> str:
+        with get_conn() as conn:
+            row = conn.execute("SELECT language FROM users WHERE user_id = ?", (user_id,)).fetchone()
+            return row[0] if row and row[0] else "uz"
+
+    def set_language(self, user_id: int, lang: str) -> None:
+        with get_conn() as conn:
+            conn.execute("UPDATE users SET language = ? WHERE user_id = ?", (lang, user_id))

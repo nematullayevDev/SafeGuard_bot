@@ -6,22 +6,82 @@ from app.models import (
 )
 
 _VERDICT_LABEL = {
-    ScanVerdict.DANGEROUS: "🔴 XAVFLI",
-    ScanVerdict.SUSPICIOUS: "⚠️ SHUBHALI",
-    ScanVerdict.SAFE: "✅ XAVFSIZ",
-    ScanVerdict.UNKNOWN: "❓ NOMA'LUM",
+    "uz": {
+        ScanVerdict.DANGEROUS: "🔴 XAVFLI",
+        ScanVerdict.SUSPICIOUS: "⚠️ SHUBHALI",
+        ScanVerdict.SAFE: "✅ XAVFSIZ",
+        ScanVerdict.UNKNOWN: "❓ NOMA'LUM",
+    },
+    "uz_cyr": {
+        ScanVerdict.DANGEROUS: "🔴 ХАВФЛИ",
+        ScanVerdict.SUSPICIOUS: "⚠️ ШУБҲАЛИ",
+        ScanVerdict.SAFE: "✅ ХАВФСИЗ",
+        ScanVerdict.UNKNOWN: "❓ НОМАЪЛУМ",
+    },
+    "ru": {
+        ScanVerdict.DANGEROUS: "🔴 ОПАСНО",
+        ScanVerdict.SUSPICIOUS: "⚠️ ПОДОЗРИТЕЛЬНО",
+        ScanVerdict.SAFE: "✅ БЕЗОПАСНО",
+        ScanVerdict.UNKNOWN: "❓ НЕИЗВЕСТНО",
+    },
+    "en": {
+        ScanVerdict.DANGEROUS: "🔴 DANGEROUS",
+        ScanVerdict.SUSPICIOUS: "⚠️ SUSPICIOUS",
+        ScanVerdict.SAFE: "✅ SAFE",
+        ScanVerdict.UNKNOWN: "❓ UNKNOWN",
+    }
 }
 _URL_ADVICE = {
-    ScanVerdict.DANGEROUS: "❌ Bu linkni OCHMANG!",
-    ScanVerdict.SUSPICIOUS: "⚡ Ehtiyot bo'ing!",
-    ScanVerdict.SAFE: "👍 Xavfsiz ko'rinadi.",
-    ScanVerdict.UNKNOWN: "⚠️ Natijani o'qishda xatolik.",
+    "uz": {
+        ScanVerdict.DANGEROUS: "❌ Bu linkni OCHMANG!",
+        ScanVerdict.SUSPICIOUS: "⚡ Ehtiyot bo'ling!",
+        ScanVerdict.SAFE: "👍 Xavfsiz ko'rinadi.",
+        ScanVerdict.UNKNOWN: "⚠️ Natijani o'qishda xatolik.",
+    },
+    "uz_cyr": {
+        ScanVerdict.DANGEROUS: "❌ Бу линкни ОЧМАНГ!",
+        ScanVerdict.SUSPICIOUS: "⚡ Эҳтиёт бўлинг!",
+        ScanVerdict.SAFE: "👍 Хавфсиз кўринади.",
+        ScanVerdict.UNKNOWN: "⚠️ Натижани ўқишда хатолик.",
+    },
+    "ru": {
+        ScanVerdict.DANGEROUS: "❌ НЕ ОТКРЫВАЙТЕ эту ссылку!",
+        ScanVerdict.SUSPICIOUS: "⚡ Будьте осторожны!",
+        ScanVerdict.SAFE: "👍 Выглядит безопасно.",
+        ScanVerdict.UNKNOWN: "⚠️ Ошибка при чтении результата.",
+    },
+    "en": {
+        ScanVerdict.DANGEROUS: "❌ DO NOT OPEN this link!",
+        ScanVerdict.SUSPICIOUS: "⚡ Be cautious!",
+        ScanVerdict.SAFE: "👍 Appears safe.",
+        ScanVerdict.UNKNOWN: "⚠️ Error reading result.",
+    }
 }
 _FILE_ADVICE = {
-    ScanVerdict.DANGEROUS: "❌ Bu faylni O'RNATMANG!",
-    ScanVerdict.SUSPICIOUS: "⚡ Ehtiyot bo'ing!",
-    ScanVerdict.SAFE: "👍 Xavfsiz ko'rinadi.",
-    ScanVerdict.UNKNOWN: "⚠️ Natijani o'qishda xatolik.",
+    "uz": {
+        ScanVerdict.DANGEROUS: "❌ Bu faylni O'RNATMANG!",
+        ScanVerdict.SUSPICIOUS: "⚡ Ehtiyot bo'ling!",
+        ScanVerdict.SAFE: "👍 Xavfsiz ko'rinadi.",
+        ScanVerdict.UNKNOWN: "⚠️ Natijani o'qishda xatolik.",
+    },
+    "uz_cyr": {
+        ScanVerdict.DANGEROUS: "❌ Бу файлни ЎРНАТМАНГ!",
+        ScanVerdict.SUSPICIOUS: "⚡ Эҳтиёт бўлинг!",
+        ScanVerdict.SAFE: "👍 Хавфсиз кўринади.",
+        ScanVerdict.UNKNOWN: "⚠️ Натижани ўқишда хатолик.",
+    },
+    "ru": {
+        ScanVerdict.DANGEROUS: "❌ НЕ УСТАНАВЛИВАЙТЕ этот файл!",
+        ScanVerdict.SUSPICIOUS: "⚡ Будьте осторожны!",
+        ScanVerdict.SAFE: "👍 Выглядит безопасно.",
+        ScanVerdict.UNKNOWN: "⚠️ Ошибка при чтении результата.",
+    },
+    "en": {
+        ScanVerdict.DANGEROUS: "❌ DO NOT INSTALL this file!",
+        ScanVerdict.SUSPICIOUS: "⚡ Be cautious!",
+        ScanVerdict.SAFE: "👍 Appears safe.",
+        ScanVerdict.UNKNOWN: "⚠️ Error reading result.",
+    }
 }
 _VERDICT_EMOJI = {
     ScanVerdict.SAFE: "✅",
@@ -40,57 +100,137 @@ def truncate(s: str, limit: int, suffix: str = "...va boshqalar") -> str:
 
 
 # ─── Scan results ─────────────────────────────────────
-def scan_result(r: ScanResult) -> str:
+def scan_result(r: ScanResult, lang: str = "uz") -> str:
     if r.error:
-        return f"❌ Xatolik: {r.error}"
+        if lang == "uz":
+            return f"❌ Xatolik: {r.error}"
+        elif lang == "uz_cyr":
+            return f"❌ Хатолик: {r.error}"
+        elif lang == "ru":
+            return f"❌ Ошибка: {r.error}"
+        else:
+            return f"❌ Error: {r.error}"
     icon = "🔗" if r.item_type.value == "link" else "📦"
-    label = _VERDICT_LABEL[r.verdict]
+    
+    lang_labels = _VERDICT_LABEL.get(lang, _VERDICT_LABEL["uz"])
+    label = lang_labels[r.verdict]
+    
     advice_map = _URL_ADVICE if r.item_type.value == "link" else _FILE_ADVICE
-    advice = advice_map[r.verdict]
+    lang_advices = advice_map.get(lang, advice_map["uz"])
+    advice = lang_advices[r.verdict]
     
-    desc_str = f"\nℹ️ <b>Batafsil:</b>\n{r.description}\n" if r.description else ""
+    desc_str = ""
+    if r.description:
+        desc_label = {
+            "uz": "ℹ️ <b>Batafsil:</b>",
+            "uz_cyr": "ℹ️ <b>Батафсил:</b>",
+            "ru": "ℹ️ <b>Подробнее:</b>",
+            "en": "ℹ️ <b>Details:</b>"
+        }.get(lang, "ℹ️ <b>Details:</b>")
+        desc_str = f"\n{desc_label}\n{r.description}\n"
+        
+    analysis_label = {
+        "uz": f"📊 Tahlil ({r.total_engines} antivirus):",
+        "uz_cyr": f"📊 Таҳлил ({r.total_engines} антивирус):",
+        "ru": f"📊 Анализ ({r.total_engines} антивирусов):",
+        "en": f"📊 Analysis ({r.total_engines} antiviruses):"
+    }.get(lang, f"📊 Analysis:")
+    
+    mal_label = {"uz": "Xavfli", "uz_cyr": "Хавфли", "ru": "Опасно", "en": "Dangerous"}.get(lang, "Dangerous")
+    susp_label = {"uz": "Shubhali", "uz_cyr": "Шубҳали", "ru": "Подозрительно", "en": "Suspicious"}.get(lang, "Suspicious")
+    safe_label = {"uz": "Xavfsiz", "uz_cyr": "Хавфсиз", "ru": "Безопасно", "en": "Safe"}.get(lang, "Safe")
+    un_label = {"uz": "Tekshirmadi", "uz_cyr": "Текширмади", "ru": "Не проверено", "en": "Undetected"}.get(lang, "Undetected")
     
     return (
-        f"{label}\n\n{icon} {r.value}\n{desc_str}\n📊 Tahlil ({r.total_engines} antivirus):\n"
-        f"  🔴 Xavfli:      {r.malicious}\n"
-        f"  🟡 Shubhali:    {r.suspicious}\n"
-        f"  🟢 Xavfsiz:     {r.harmless}\n"
-        f"  ⚪ Tekshirmadi: {r.undetected}\n\n{advice}"
+        f"{label}\n\n{icon} {r.value}\n{desc_str}\n{analysis_label}\n"
+        f"  🔴 {mal_label}:      {r.malicious}\n"
+        f"  🟡 {susp_label}:    {r.suspicious}\n"
+        f"  🟢 {safe_label}:     {r.harmless}\n"
+        f"  ⚪ {un_label}: {r.undetected}\n\n{advice}"
     )
 
 
-def dangerous_file_warning(r: ScanResult, sender_mention: str) -> str:
+def dangerous_file_warning(r: ScanResult, sender_mention: str, lang: str = "uz") -> str:
     emoji = "🔴" if r.verdict is ScanVerdict.DANGEROUS else "⚠️"
+    title = {
+        "uz": "🚨 {emoji} <b>XAVFLI FAYL BLOKLANDI!</b>",
+        "uz_cyr": "🚨 {emoji} <b>ХАВФЛИ ФАЙЛ БЛОКЛАНДИ!</b>",
+        "ru": "🚨 {emoji} <b>ВРЕДОНОСНЫЙ ФАЙЛ ЗАБЛОКИРОВАН!</b>",
+        "en": "🚨 {emoji} <b>MALICIOUS FILE BLOCKED!</b>"
+    }.get(lang, "🚨 {emoji} <b>MALICIOUS FILE BLOCKED!</b>").format(emoji=emoji)
+    
+    sender_label = {"uz": "Yuboruvchi", "uz_cyr": "Юборувчи", "ru": "Отправитель", "en": "Sender"}.get(lang, "Sender")
+    file_label = {"uz": "Fayl", "uz_cyr": "Файл", "ru": "Файл", "en": "File"}.get(lang, "File")
+    
+    warn_text = {
+        "uz": "⚠️ Guruh a'zolari bu faylni <b>yuklamang!</b>",
+        "uz_cyr": "⚠️ Гуруҳ аъзолари бу файлни <b>юкламанг!</b>",
+        "ru": "⚠️ Участники группы, <b>не скачивайте</b> этот файл!",
+        "en": "⚠️ Group members, <b>do not download</b> this file!"
+    }.get(lang, "⚠️ Group members, <b>do not download</b> this file!")
+    
     return (
-        f"🚨 {emoji} <b>XAVFLI FAYL BLOKLANDI!</b>\n"
+        f"{title}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 Yuboruvchi: {sender_mention}\n"
-        f"📦 Fayl: <b>{r.value}</b>\n"
+        f"👤 {sender_label}: {sender_mention}\n"
+        f"📦 {file_label}: <b>{r.value}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{scan_result(r)}\n\n"
-        f"⚠️ Guruh azolari bu faylni <b>yuklamang!</b>"
+        f"{scan_result(r, lang)}\n\n"
+        f"{warn_text}"
     )
 
 
-def dangerous_link_warning(r: ScanResult, sender_mention: str) -> str:
+def dangerous_link_warning(r: ScanResult, sender_mention: str, lang: str = "uz") -> str:
     emoji = "🔴" if r.verdict is ScanVerdict.DANGEROUS else "⚠️"
+    title = {
+        "uz": "🚨 {emoji} <b>XAVFLI LINK BLOKLANDI!</b>",
+        "uz_cyr": "🚨 {emoji} <b>ХАВФЛИ ЛИНК БЛОКЛАНДИ!</b>",
+        "ru": "🚨 {emoji} <b>ВРЕДОНОСНАЯ ССЫЛКА ЗАБЛОКИРОВАНА!</b>",
+        "en": "🚨 {emoji} <b>MALICIOUS LINK BLOCKED!</b>"
+    }.get(lang, "🚨 {emoji} <b>MALICIOUS LINK BLOCKED!</b>").format(emoji=emoji)
+    
+    sender_label = {"uz": "Yuboruvchi", "uz_cyr": "Юборувчи", "ru": "Отправитель", "en": "Sender"}.get(lang, "Sender")
+    link_label = {"uz": "Link", "uz_cyr": "Линк", "ru": "Ссылка", "en": "Link"}.get(lang, "Link")
+    
+    warn_text = {
+        "uz": "⚠️ Guruh a'zolari bu linkni <b>ochmang!</b>",
+        "uz_cyr": "⚠️ Гуруҳ аъзолари бу линкни <b>очманг!</b>",
+        "ru": "⚠️ Участники группы, <b>не открывайте</b> эту ссылку!",
+        "en": "⚠️ Group members, <b>do not open</b> this link!"
+    }.get(lang, "⚠️ Group members, <b>do not open</b> this link!")
+    
     short = r.value[:50] + "..." if len(r.value) > 50 else r.value
     return (
-        f"🚨 {emoji} <b>XAVFLI LINK BLOKLANDI!</b>\n"
+        f"{title}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 Yuboruvchi: {sender_mention}\n"
-        f"🔗 Link: {short}\n"
+        f"👤 {sender_label}: {sender_mention}\n"
+        f"🔗 {link_label}: {short}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{scan_result(r)}\n\n"
-        f"⚠️ Guruh a'zolari bu linkni <b>ochmang!</b>"
+        f"{scan_result(r, lang)}\n\n"
+        f"{warn_text}"
     )
 
 
-def blacklisted_link_warning(sender_mention: str) -> str:
+def blacklisted_link_warning(sender_mention: str, lang: str = "uz") -> str:
+    title = {
+        "uz": "🔴 <b>XAVFLI LINK BLOKLANDI!</b>",
+        "uz_cyr": "🔴 <b>ХАВФЛИ ЛИНК БЛОКЛАНДИ!</b>",
+        "ru": "🔴 <b>ВРЕДОНОСНАЯ ССЫЛКА ЗАБЛОКИРОВАНА!</b>",
+        "en": "🔴 <b>MALICIOUS LINK BLOCKED!</b>"
+    }.get(lang, "🔴 <b>MALICIOUS LINK BLOCKED!</b>")
+    
+    sender_label = {"uz": "Yuboruvchi", "uz_cyr": "Юборувчи", "ru": "Отправитель", "en": "Sender"}.get(lang, "Sender")
+    info = {
+        "uz": "📋 Qora ro'yxatda mavjud!",
+        "uz_cyr": "📋 Қора рўйхатда мавжуд!",
+        "ru": "📋 Находится в черном списке!",
+        "en": "📋 Exists in the blacklist!"
+    }.get(lang, "📋 Exists in the blacklist!")
+    
     return (
-        "🔴 <b>XAVFLI LINK BLOKLANDI!</b>\n"
-        f"👤 Yuboruvchi: {sender_mention}\n"
-        "📋 Qora ro'yxatda mavjud!"
+        f"{title}\n"
+        f"👤 {sender_label}: {sender_mention}\n"
+        f"{info}"
     )
 
 
@@ -247,77 +387,169 @@ def banned_sites_empty(platform_title: str, note: str) -> str:
     )
 
 
-def nlp_violation_warning(category: str, reason: str, sender_mention: str) -> str:
+def nlp_violation_warning(category: str, reason: str, sender_mention: str, lang: str = "uz") -> str:
     cat_label = {
-        "extremism": "🧠 Diniy Ekstremizm va Radikalizm (O'zR JK 244-1)",
-        "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
-        "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)",
-        "cybercrime": "💻 Firibgarlik va Kiber-jinoyat (O'zR JK 168)"
-    }.get(category, "⚠️ Taqiqlangan matn")
-    
-    emoji = {
-        "extremism": "🚨",
-        "drugs": "🚨",
-        "bullying": "🚨",
-        "cybercrime": "🚨"
-    }.get(category, "🚨")
+        "uz": {
+            "extremism": "🧠 Diniy Ekstremizm va Radikalizm (O'zR JK 244-1)",
+            "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
+            "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)",
+            "cybercrime": "💻 Firibgarlik va Kiber-jinoyat (O'zR JK 168)"
+        },
+        "uz_cyr": {
+            "extremism": "🧠 Диний Экстремизм ва Радикализм (ЎзР ЖК 244-1)",
+            "drugs": "💊 Гиёҳванд моддалар айланмаси (ЎзР ЖК 273)",
+            "bullying": "👤 Кибербуллинг ва Ҳақорат (ЎзР ЖК 140)",
+            "cybercrime": "💻 Фирибгарлик ва Кибер-жиноят (ЎзР ЖК 168)"
+        },
+        "ru": {
+            "extremism": "🧠 Религиозный экстремизм и радикализм (УК РУз 244-1)",
+            "drugs": "💊 Оборот наркотических средств (УК РУз 273)",
+            "bullying": "👤 Кибербуллинг и оскорбления (УК РУз 140)",
+            "cybercrime": "💻 Мошенничество и киберпреступность (УК РУз 168)"
+        },
+        "en": {
+            "extremism": "🧠 Religious Extremism & Radicalism (CC RUz 244-1)",
+            "drugs": "💊 Drug Trafficking (CC RUz 273)",
+            "bullying": "👤 Cyberbullying & Harassment (CC RUz 140)",
+            "cybercrime": "💻 Fraud & Cybercrime (CC RUz 168)"
+        }
+    }.get(lang, {}).get(category, "⚠️ Taqiqlangan matn" if lang == "uz" else "⚠️ Forbidden text")
 
     legal_note = {
-        "extremism": "O'zR JK 244-1-moddasiga ko'ra jinoiy javobgarlik belgilangan.",
-        "drugs": "O'zR JK 273-moddasiga ko'ra og'ir jinoiy javobgarlik belgilangan.",
-        "bullying": "O'zR JK 140-moddasiga muvofiq javobgarlik choralari belgilangan.",
-        "cybercrime": "O'zR JK 168-moddasiga muvofiq jinoiy javobgarlik belgilangan."
-    }.get(category, "O'zbekiston Respublikasi qonunchiligiga ko'ra javobgarlik belgilangan.")
-    
+        "uz": {
+            "extremism": "O'zR JK 244-1-moddasiga ko'ra jinoiy javobgarlik belgilangan.",
+            "drugs": "O'zR JK 273-moddasiga ko'ra og'ir jinoiy javobgarlik belgilangan.",
+            "bullying": "O'zR JK 140-moddasiga muvofiq javobgarlik choralari belgilangan.",
+            "cybercrime": "O'zR JK 168-moddasiga muvofiq jinoiy javobgarlik belgilangan."
+        },
+        "uz_cyr": {
+            "extremism": "ЎзР ЖК 244-1-моддасига кўра жиноий жавобгарлик белгиланган.",
+            "drugs": "ЎзР ЖК 273-моддасига кўра оғир жиноий жавобгарлик белгиланган.",
+            "bullying": "ЎзР ЖК 140-моддасига мувофиқ жавобгарлик чоралари белгиланган.",
+            "cybercrime": "ЎзР ЖК 168-моддасига мувофиқ жиноий жавобгарлик белгиланган."
+        },
+        "ru": {
+            "extremism": "Уголовная ответственность предусмотрена статьей 244-1 УК РУз.",
+            "drugs": "Тяжелая уголовная ответственность предусмотрена статьей 273 УК РУз.",
+            "bullying": "Меры ответственности предусмотрены статьей 140 УК РУз.",
+            "cybercrime": "Уголовная ответственность предусмотрена статьей 168 УК РУз."
+        },
+        "en": {
+            "extremism": "Criminal liability is established under Article 244-1 of the Criminal Code of RUz.",
+            "drugs": "Heavy criminal liability is established under Article 273 of the Criminal Code of RUz.",
+            "bullying": "Liability measures are established under Article 140 of the Criminal Code of RUz.",
+            "cybercrime": "Criminal liability is established under Article 168 of the Criminal Code of RUz."
+        }
+    }.get(lang, {}).get(category, "O'zbekiston Respublikasi qonunchiligiga ko'ra javobgarlik belgilangan.")
+
+    title = {
+        "uz": "🚨 <b>SafeGuard: Taqiqlangan matn bloklandi!</b>",
+        "uz_cyr": "🚨 <b>SafeGuard: Тақиқланган матн блокланди!</b>",
+        "ru": "🚨 <b>SafeGuard: Запрещенный текст заблокирован!</b>",
+        "en": "🚨 <b>SafeGuard: Forbidden text blocked!</b>"
+    }.get(lang, "🚨 <b>SafeGuard: Forbidden text blocked!</b>")
+
+    user_lbl = {"uz": "Foydalanuvchi", "uz_cyr": "Фойдаланувчи", "ru": "Пользователь", "en": "User"}.get(lang, "User")
+    cat_lbl = {"uz": "Kategoriya", "uz_cyr": "Категория", "ru": "Категория", "en": "Category"}.get(lang, "Category")
+    reason_lbl = {"uz": "Izoh", "uz_cyr": "Изоҳ", "ru": "Пояснение", "en": "Reason"}.get(lang, "Reason")
+    action_lbl = {"uz": "Chora", "uz_cyr": "Чора", "ru": "Мера", "en": "Action"}.get(lang, "Action")
+
     return (
-        f"{emoji} <b>SafeGuard: Taqiqlangan matn bloklandi!</b>\n"
+        f"{title}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 <b>Foydalanuvchi:</b> {sender_mention}\n"
-        f"📂 <b>Kategoriya:</b> <code>{cat_label}</code>\n"
-        f"📝 <b>Izoh:</b> <i>{reason}</i>\n"
-        f"⚖️ <b>Chora:</b> {legal_note}\n"
+        f"👤 <b>{user_lbl}:</b> {sender_mention}\n"
+        f"📂 <b>{cat_lbl}:</b> <code>{cat_label}</code>\n"
+        f"📝 <b>{reason_lbl}:</b> <i>{reason}</i>\n"
+        f"⚖️ <b>{action_lbl}:</b> {legal_note}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
 
-def nlp_forensic_report(result: dict, raw_text: str) -> str:
+def nlp_forensic_report(result: dict, raw_text: str, lang: str = "uz") -> str:
     category = result.get("category")
     reason = result.get("reason", "Tahlil yakunlandi.")
     is_viol = result.get("is_violation", False)
     
+    title = {
+        "uz": "🛡️ <b>Kiber-Tergov Ekspertiza Xulosasi</b>",
+        "uz_cyr": "🛡️ <b>Кибер-Тергов Экспертиза Хулосаси</b>",
+        "ru": "🛡️ <b>Заключение Кибер-Расследования</b>",
+        "en": "🛡️ <b>Cyber-Forensics Investigation Conclusion</b>"
+    }.get(lang, "🛡️ <b>Cyber-Forensics Investigation Conclusion</b>")
+
     if not is_viol:
+        safe_msg = {
+            "uz": "📊 <b>Holat:</b> ✅ Tizim xavfsiz.\n🔬 <b>Tahlil:</b> Matnda hech qanday kiber-tahdid belgilari aniqlanmadi.",
+            "uz_cyr": "📊 <b>Ҳолат:</b> ✅ Тизим хавфсиз.\n🔬 <b>Таҳлил:</b> Матнда ҳеч қандай кибер-таҳдид белгилари аниқланмади.",
+            "ru": "📊 <b>Статус:</b> ✅ Система в безопасности.\n🔬 <b>Анализ:</b> В тексте не обнаружено признаков киберугроз.",
+            "en": "📊 <b>Status:</b> ✅ System secure.\n🔬 <b>Analysis:</b> No signs of cyber threats detected in the text."
+        }.get(lang, "📊 <b>Status:</b> ✅ System secure.\n🔬 <b>Analysis:</b> No signs of cyber threats detected in the text.")
         return (
-            f"🛡️ <b>Kiber-Tergov Ekspertiza Xulosasi</b>\n"
+            f"{title}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📊 <b>Holat:</b> ✅ Tizim xavfsiz.\n"
-            f"🔬 <b>Tahlil:</b> Matnda hech qanday kiber-tahdid belgilari aniqlanmadi.\n"
+            f"{safe_msg}\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
         )
         
-    status_emoji = "🔴 Qonunbuzarlik aniqlandi!"
-    status_color = "🚨"
+    status_emoji = {
+        "uz": "🔴 Qonunbuzarlik aniqlandi!",
+        "uz_cyr": "🔴 Қонунбузарлик аниқланди!",
+        "ru": "🔴 Обнаружено нарушение!",
+        "en": "🔴 Violation detected!"
+    }.get(lang, "🔴 Violation detected!")
     
     cat_label = {
-        "extremism": "🧠 Ekstremizm va Radikalizm (O'zR JK 244-1)",
-        "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
-        "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)",
-        "cybercrime": "💻 Firibgarlik va Kiberjinoyat (O'zR JK 168)"
-    }.get(category, "—")
+        "uz": {
+            "extremism": "🧠 Ekstremizm va Radikalizm (O'zR JK 244-1)",
+            "drugs": "💊 Giyohvand moddalar aylanmasi (O'zR JK 273)",
+            "bullying": "👤 Kiberbulling va Haqorat (O'zR JK 140)",
+            "cybercrime": "💻 Firibgarlik va Kiberjinoyat (O'zR JK 168)"
+        },
+        "uz_cyr": {
+            "extremism": "🧠 Экстремизм ва Радикализм (ЎзР ЖК 244-1)",
+            "drugs": "💊 Гиёҳванд моддалар айланмаси (ЎзР ЖК 273)",
+            "bullying": "👤 Кибербуллинг ва Ҳақорат (ЎзР ЖК 140)",
+            "cybercrime": "💻 Фирибгарлик ва Кибержиноят (ЎзР ЖК 168)"
+        },
+        "ru": {
+            "extremism": "🧠 Экстремизм и радикализм (УК РУз 244-1)",
+            "drugs": "💊 Оборот наркотиков (УК РУз 273)",
+            "bullying": "👤 Кибербуллинг и оскорбления (УК РУз 140)",
+            "cybercrime": "💻 Мошенничество и киберпреступления (УК РУз 168)"
+        },
+        "en": {
+            "extremism": "🧠 Extremism & Radicalism (CC RUz 244-1)",
+            "drugs": "💊 Drug Trafficking (CC RUz 273)",
+            "bullying": "👤 Cyberbullying & Harassment (CC RUz 140)",
+            "cybercrime": "💻 Fraud & Cybercrime (CC RUz 168)"
+        }
+    }.get(lang, {}).get(category, "—")
     
     legal_section = {
-        "extremism": "O'zR JK 244-1-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi.",
-        "drugs": "O'zR JK 273-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi.",
-        "bullying": "O'zR JK 140-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi.",
-        "cybercrime": "O'zR JK 168-moddasi bo'yicha raqamli dalillar arxivi shakllantirildi."
-    }.get(category, "Tegishli modda bo'yicha dalillar arxivi shakllantirildi.")
+        "uz": "O'zR JK bo'yicha raqamli dalillar arxivi shakllantirildi.",
+        "uz_cyr": "ЎзР ЖК бўйича рақамли далиллар архиви шакллантирилди.",
+        "ru": "Сформирован архив цифровых доказательств согласно УК РУз.",
+        "en": "Digital evidence archive has been generated according to the Criminal Code of RUz."
+    }.get(lang, "Digital evidence archive has been generated.")
+
+    status_lbl = {"uz": "Holat", "uz_cyr": "Ҳолат", "ru": "Статус", "en": "Status"}.get(lang, "Status")
+    cat_lbl = {"uz": "Kategoriya", "uz_cyr": "Категория", "ru": "Категория", "en": "Category"}.get(lang, "Category")
+    analysis_lbl = {"uz": "Tahlil", "uz_cyr": "Таҳлил", "ru": "Анализ", "en": "Analysis"}.get(lang, "Analysis")
+    legal_lbl = {"uz": "Huquqiy chora", "uz_cyr": "Ҳуқуқий чора", "ru": "Правовая мера", "en": "Legal action"}.get(lang, "Legal action")
+    evidence_lbl = {
+        "uz": "Ushbu izlar sud-tergov jarayonlarida rasmiy dalil bo'lib xizmat qiladi.",
+        "uz_cyr": "Ушбу излар суд-тергов жараёнларида расмий далил бўлиб хизмат қилади.",
+        "ru": "Данные следы служат официальным доказательством в судебно-следственных процессах.",
+        "en": "These traces serve as official evidence in judicial and investigative processes."
+    }.get(lang, "These traces serve as official evidence.")
 
     return (
-        f"{status_color} <b>Kiber-Tergov Ekspertiza Xulosasi</b>\n"
+        f"🚨 <b>{title}</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 <b>Holat:</b> {status_emoji}\n"
-        f"📂 <b>Kategoriya:</b> <b>{cat_label}</b>\n"
-        f"🔬 <b>Tahlil:</b> <code>{reason}</code>\n"
-        f"⚖️ <b>Huquqiy chora:</b> {legal_section} Ushbu izlar sud-tergov jarayonlarida rasmiy dalil bo'lib xizmat qiladi.\n"
+        f"📊 <b>{status_lbl}:</b> {status_emoji}\n"
+        f"📂 <b>{cat_lbl}:</b> <b>{cat_label}</b>\n"
+        f"🔬 <b>{analysis_lbl}:</b> <code>{reason}</code>\n"
+        f"⚖️ <b>{legal_lbl}:</b> {legal_section} {evidence_lbl}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━"
     )
 
@@ -427,64 +659,153 @@ def forensic_suspect_detail(suspect_details: dict, cases: Sequence[ForensicCase]
     # We can join with a nice divider
     body = "\n\n━━━━━━━━━━━━━━━━━━━━━\n\n".join(body_parts)
     
-    text = header + body
-    if len(text) > 4000:
-        text = text[:3950] + "\n\n...va boshqalar (Tarix juda uzun, to'liq ma'lumot PDF/Word faylda)"
     return text
 
 
-def group_settings_text(chat_title: str, filters: dict, g_settings: dict) -> str:
-    l_status = "🟢 <b>Faol</b>" if filters.get("filter_links", True) else "🔴 <b>O'chirilgan</b>"
-    f_status = "🟢 <b>Faol</b>" if filters.get("filter_files", True) else "🔴 <b>O'chirilgan</b>"
-    n_status = "🟢 <b>Faol</b>" if filters.get("filter_nlp", True) else "🔴 <b>O'chirilgan</b>"
+def group_settings_text(chat_title: str, filters: dict, g_settings: dict, lang: str = "uz") -> str:
+    active_lbl = {"uz": "Faol", "uz_cyr": "Фаол", "ru": "Активен", "en": "Active"}
+    inactive_lbl = {"uz": "O'chirilgan", "uz_cyr": "Ўчирилган", "ru": "Отключен", "en": "Disabled"}
+    
+    l_status = f"🟢 <b>{active_lbl.get(lang, 'Faol')}</b>" if filters.get("filter_links", True) else f"🔴 <b>{inactive_lbl.get(lang, 'O\'chirilgan')}</b>"
+    f_status = f"🟢 <b>{active_lbl.get(lang, 'Faol')}</b>" if filters.get("filter_files", True) else f"🔴 <b>{inactive_lbl.get(lang, 'O\'chirilgan')}</b>"
+    n_status = f"🟢 <b>{active_lbl.get(lang, 'Faol')}</b>" if filters.get("filter_nlp", True) else f"🔴 <b>{inactive_lbl.get(lang, 'O\'chirilgan')}</b>"
 
     limit = g_settings.get("warnings_limit", 3)
     kws = g_settings.get("custom_keywords", "")
     wl = g_settings.get("whitelisted_domains", "")
+    lang_code = g_settings.get("language", "uz")
     
-    kws_display = f"<code>{kws}</code>" if kws else "<i>sozlangan so'zlar yo'q</i>"
-    wl_display = f"<code>{wl}</code>" if wl else "<i>sozlangan domenlar yo'q</i>"
+    lang_names = {
+        "uz": "O'zbekcha 🇺🇿",
+        "uz_cyr": "Ўзбекча (Крил) 🇺🇿",
+        "ru": "Русский 🇷🇺",
+        "en": "English 🇬🇧"
+    }
+    lang_name = lang_names.get(lang_code, "O'zbekcha 🇺🇿")
+
+    no_words = {"uz": "sozlangan so'zlar yo'q", "uz_cyr": "созланган сўзлар йўқ", "ru": "нет настроенных слов", "en": "no keywords configured"}.get(lang, "no keywords configured")
+    no_domains = {"uz": "sozlangan domenlar yo'q", "uz_cyr": "созланган доменлар йўқ", "ru": "нет настроенных доменов", "en": "no domains configured"}.get(lang, "no domains configured")
+
+    kws_display = f"<code>{kws}</code>" if kws else f"<i>{no_words}</i>"
+    wl_display = f"<code>{wl}</code>" if wl else f"<i>{no_domains}</i>"
+
+    title = {
+        "uz": "⚙️ <b>«{chat_title}» Guruh Himoyasi Sozlamalari</b>",
+        "uz_cyr": "⚙️ <b>«{chat_title}» Гуруҳ Ҳимояси Созламалари</b>",
+        "ru": "⚙️ <b>Настройки Защиты Группы «{chat_title}»</b>",
+        "en": "⚙️ <b>«{chat_title}» Group Protection Settings</b>"
+    }.get(lang, "⚙️ <b>«{chat_title}» Group Protection Settings</b>").format(chat_title=chat_title)
+
+    link_lbl = {"uz": "Havola Skaneri", "uz_cyr": "Ҳавола Сканери", "ru": "Сканер Ссылок", "en": "Link Scanner"}.get(lang, "Link Scanner")
+    file_lbl = {"uz": "Fayl Skaneri", "uz_cyr": "Файл Сканери", "ru": "Сканер Файлов", "en": "File Scanner"}.get(lang, "File Scanner")
+    nlp_lbl = {"uz": "Matn Tahlili (NLP)", "uz_cyr": "Матн Таҳлили (NLP)", "ru": "Анализ Текста (NLP)", "en": "Text Analysis (NLP)"}.get(lang, "Text Analysis (NLP)")
+    warn_lbl = {"uz": "Ogohlantirishlar Limiti", "uz_cyr": "Огоҳлантиришlar Limiti", "ru": "Лимит Предупреждений", "en": "Warnings Limit"}.get(lang, "Warnings Limit")
+    words_lbl = {"uz": "Taqiqlangan so'zlar", "uz_cyr": "Тақиқланган сўзлар", "ru": "Запрещенные слова", "en": "Banned words"}.get(lang, "Banned words")
+    wl_lbl = {"uz": "Oq ro'yxat (domenlar)", "uz_cyr": "Оқ рўйхат (доменлар)", "ru": "Белый список (домены)", "en": "Whitelisted domains"}.get(lang, "Whitelisted domains")
+    lang_lbl = {"uz": "Guruh tili", "uz_cyr": "Гуруҳ тили", "ru": "Язык группы", "en": "Group language"}.get(lang, "Group language")
+    hint = {
+        "uz": "👇 <i>Tegishli sozlamani o'zgartirish uchun quyidagi tugmalarni bosing:</i>",
+        "uz_cyr": "👇 <i>Тегишли созламани ўзгартириш учун қуйидаги тугмаларни босинг:</i>",
+        "ru": "👇 <i>Нажмите кнопки ниже, чтобы изменить настройки:</i>",
+        "en": "👇 <i>Press the buttons below to change respective settings:</i>"
+    }.get(lang, "👇 <i>Press the buttons below to change respective settings:</i>")
 
     return (
-        f"⚙️ <b>«{chat_title}» Guruh Himoyasi Sozlamalari</b>\n"
+        f"{title}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🔗 <b>Havola Skaneri:</b> {l_status}\n"
-        f"📦 <b>Fayl Skaneri:</b> {f_status}\n"
-        f"🧠 <b>Matn Tahlili (NLP):</b> {n_status}\n\n"
-        f"⚠️ <b>Ogohlantirishlar Limiti:</b> <code>{limit}</code> ta warn\n"
-        f"🚫 <b>Taqiqlangan so'zlar:</b> {kws_display}\n"
-        f"✅ <b>Oq ro'yxat (domenlar):</b> {wl_display}\n"
+        f"🔗 <b>{link_lbl}:</b> {l_status}\n"
+        f"📦 <b>{file_lbl}:</b> {f_status}\n"
+        f"🧠 <b>{nlp_lbl}:</b> {n_status}\n\n"
+        f"⚠️ <b>{warn_lbl}:</b> <code>{limit}</code> ta warn\n"
+        f"🚫 <b>{words_lbl}:</b> {kws_display}\n"
+        f"✅ <b>{wl_lbl}:</b> {wl_display}\n"
+        f"🌐 <b>{lang_lbl}:</b> <code>{lang_name}</code>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"👇 <i>Tegishli sozlamani o'zgartirish uchun quyidagi tugmalarni bosing:</i>"
+        f"{hint}"
     )
 
 
-def quiz_question_text(q_idx: int, question_data: dict) -> str:
+def quiz_question_text(q_idx: int, question_data: dict, lang: str = "uz") -> str:
     q_num = q_idx + 1
+    title = {
+        "uz": "🛡️ <b>Kiber-Xavfsizlik Viktorinasi</b>",
+        "uz_cyr": "🛡️ <b>Кибер-Хавфсизлик Викторинаси</b>",
+        "ru": "🛡️ <b>Викторина по Кибербезопасности</b>",
+        "en": "🛡️ <b>Cyber-Security Quiz</b>"
+    }.get(lang, "🛡️ <b>Cyber-Security Quiz</b>")
+    
+    q_lbl = {"uz": "Savol", "uz_cyr": "Савол", "ru": "Вопрос", "en": "Question"}.get(lang, "Question")
+    hint = {
+        "uz": "<i>To'g'ri javobni tanlang:</i>",
+        "uz_cyr": "<i>Тўғри жавобни танланг:</i>",
+        "ru": "<i>Выберите правильный ответ:</i>",
+        "en": "<i>Choose the correct answer:</i>"
+    }.get(lang, "<i>Choose the correct answer:</i>")
+
     return (
-        f"🛡️ <b>Kiber-Xavfsizlik Viktorinasi</b>\n"
+        f"{title}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"❓ <b>Savol {q_num}/5:</b> {question_data['text']}\n\n"
-        f"<i>To'g'ri javobni tanlang:</i>"
+        f"❓ <b>{q_lbl} {q_num}/5:</b> {question_data['text']}\n\n"
+        f"{hint}"
     )
 
 
-def quiz_result_text(score: int, passed: bool) -> str:
-    status_emoji = "🎉 PASS — TABRIKLAYMIZ!" if passed else "❌ FAILED — Qaytadan urinib ko'ring"
-    badge_note = (
-        "\n🛡️ Sizga <b>«🛡 Kiber-Himoyalangan»</b> nishoni berildi! "
-        "Endi profilingiz va foydalanuvchilar ro'yxatida ushbu belgi aks etadi."
-    ) if passed else "\nTestdan o'tish uchun kamida 4 ta savolga to'g'ri javob berishingiz kerak."
+def quiz_result_text(score: int, passed: bool, lang: str = "uz") -> str:
+    status_emoji = ""
+    if passed:
+        status_emoji = {
+            "uz": "🎉 PASS — TABRIKLAYMIZ!",
+            "uz_cyr": "🎉 PASS — ТАБРИКЛАЙМИЗ!",
+            "ru": "🎉 СДАНО — ПОЗДРАВЛЯЕМ!",
+            "en": "🎉 PASSED — CONGRATULATIONS!"
+        }.get(lang, "🎉 PASSED — CONGRATULATIONS!")
+    else:
+        status_emoji = {
+            "uz": "❌ FAILED — Qaytadan urinib ko'ring",
+            "uz_cyr": "❌ FAILED — Қайтадан уриниб кўринг",
+            "ru": "❌ НЕ СДАНO — Попробуйте снова",
+            "en": "❌ FAILED — Try again"
+        }.get(lang, "❌ FAILED — Try again")
+
+    badge_note = ""
+    if passed:
+        badge_note = {
+            "uz": "\n🛡️ Sizga <b>«🛡 Kiber-Himoyalangan»</b> nishoni berildi! Endi profilingiz va foydalanuvchilar ro'yxatida ushbu belgi aks etadi.",
+            "uz_cyr": "\n🛡️ Сизга <b>«🛡  Кибер-Ҳимояланган»</b> нишони берилди! Энди профилингиз ва фойдаланувчилар рўйхатида ушбу белги акс этади.",
+            "ru": "\n🛡️ Вам присвоен знак <b>«🛡 Кибер-защищен»</b>! Теперь этот значок будет отображаться в вашем профиле и списке пользователей.",
+            "en": "\n🛡️ You have been awarded the <b>«🛡 Cyber-Protected»</b> badge! This badge will now be displayed on your profile and in the users list."
+        }.get(lang, "")
+    else:
+        badge_note = {
+            "uz": "\nTestdan o'tish uchun kamida 4 ta savolga to'g'ri javob berishingiz kerak.",
+            "uz_cyr": "\nТестдан ўтиш учун камида 4 та саволга тўғри жавоб беришингиз керак.",
+            "ru": "\nДля прохождения теста необходимо правильно ответить минимум на 4 вопроса.",
+            "en": "\nYou need to answer at least 4 questions correctly to pass the test."
+        }.get(lang, "")
+
+    title = {
+        "uz": "📊 <b>Test Natijalari</b>",
+        "uz_cyr": "📊 <b>Тест Натижалари</b>",
+        "ru": "📊 <b>Результаты Теста</b>",
+        "en": "📊 <b>Test Results</b>"
+    }.get(lang, "📊 <b>Test Results</b>")
+
+    status_lbl = {"uz": "Holat", "uz_cyr": "Ҳолат", "ru": "Статус", "en": "Status"}.get(lang, "Status")
+    correct_lbl = {"uz": "To'g'ri javoblar", "uz_cyr": "Тўғри жавоблар", "ru": "Правильные ответы", "en": "Correct answers"}.get(lang, "Correct answers")
+    percent_lbl = {"uz": "Foiz", "uz_cyr": "Foiz", "ru": "Процент", "en": "Percentage"}.get(lang, "Percentage")
 
     return (
-        f"📊 <b>Test Natijalari</b>\n"
+        f"{title}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"Holat: <b>{status_emoji}</b>\n"
-        f"To'g'ri javoblar: <b>{score}/5</b>\n"
-        f"Foiz: <b>{score * 20}%</b>\n"
+        f"{status_lbl}: <b>{status_emoji}</b>\n"
+        f"{correct_lbl}: <b>{score}/5</b>\n"
+        f"{percent_lbl}: <b>{score * 20}%</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
         f"{badge_note}"
     )
+
+
+
 
 
 

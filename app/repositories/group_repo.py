@@ -89,43 +89,55 @@ class GroupRepository(BaseRepository):
     def get_custom_settings(self, chat_id: int) -> dict:
         with get_conn() as conn:
             row = conn.execute(
-                "SELECT warnings_limit, custom_keywords, whitelisted_domains FROM group_settings WHERE chat_id = ?",
+                "SELECT warnings_limit, custom_keywords, whitelisted_domains, language FROM group_settings WHERE chat_id = ?",
                 (chat_id,)
             ).fetchone()
         if row:
             return {
                 "warnings_limit": row[0],
                 "custom_keywords": row[1] or "",
-                "whitelisted_domains": row[2] or ""
+                "whitelisted_domains": row[2] or "",
+                "language": row[3] or "uz"
             }
         return {
             "warnings_limit": 3,
             "custom_keywords": "",
-            "whitelisted_domains": ""
+            "whitelisted_domains": "",
+            "language": "uz"
         }
 
     def set_warnings_limit(self, chat_id: int, limit: int) -> None:
         settings = self.get_custom_settings(chat_id)
-        self.update_custom_settings(chat_id, limit, settings["custom_keywords"], settings["whitelisted_domains"])
+        self.update_custom_settings(chat_id, limit, settings["custom_keywords"], settings["whitelisted_domains"], settings["language"])
 
     def set_custom_keywords(self, chat_id: int, keywords: str) -> None:
         settings = self.get_custom_settings(chat_id)
-        self.update_custom_settings(chat_id, settings["warnings_limit"], keywords, settings["whitelisted_domains"])
+        self.update_custom_settings(chat_id, settings["warnings_limit"], keywords, settings["whitelisted_domains"], settings["language"])
 
     def set_whitelisted_domains(self, chat_id: int, domains: str) -> None:
         settings = self.get_custom_settings(chat_id)
-        self.update_custom_settings(chat_id, settings["warnings_limit"], settings["custom_keywords"], domains)
+        self.update_custom_settings(chat_id, settings["warnings_limit"], settings["custom_keywords"], domains, settings["language"])
 
-    def update_custom_settings(self, chat_id: int, warnings_limit: int, custom_keywords: str, whitelisted_domains: str) -> None:
+    def get_language(self, chat_id: int) -> str:
+        with get_conn() as conn:
+            row = conn.execute("SELECT language FROM group_settings WHERE chat_id = ?", (chat_id,)).fetchone()
+            return row[0] if row and row[0] else "uz"
+
+    def set_language(self, chat_id: int, lang: str) -> None:
+        settings = self.get_custom_settings(chat_id)
+        self.update_custom_settings(chat_id, settings["warnings_limit"], settings["custom_keywords"], settings["whitelisted_domains"], lang)
+
+    def update_custom_settings(self, chat_id: int, warnings_limit: int, custom_keywords: str, whitelisted_domains: str, language: str = "uz") -> None:
         with get_conn() as conn:
             conn.execute(
                 """
-                INSERT INTO group_settings (chat_id, warnings_limit, custom_keywords, whitelisted_domains)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO group_settings (chat_id, warnings_limit, custom_keywords, whitelisted_domains, language)
+                VALUES (?, ?, ?, ?, ?)
                 ON CONFLICT(chat_id) DO UPDATE SET
                     warnings_limit = excluded.warnings_limit,
                     custom_keywords = excluded.custom_keywords,
-                    whitelisted_domains = excluded.whitelisted_domains
+                    whitelisted_domains = excluded.whitelisted_domains,
+                    language = excluded.language
                 """,
-                (chat_id, warnings_limit, custom_keywords, whitelisted_domains)
+                (chat_id, warnings_limit, custom_keywords, whitelisted_domains, language)
             )

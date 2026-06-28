@@ -10,6 +10,7 @@ class User:
     registered_at: str
     quiz_passed: int = 0
     quiz_score: int = 0
+    language: str = "uz"
 
     @property
     def at_username(self) -> str:

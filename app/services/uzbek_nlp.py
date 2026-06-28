@@ -365,7 +365,7 @@ class UzbekNLPService:
         # If API key is available, use Gemini API
         if self._api_key:
             try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self._api_key}"
+                from app.core.gemini import call_gemini_api
                 prompt = (
                     "Siz SafeGuard kiber-xavfsizlik tahlilchisisiz. "
                     "Quyidagi matnni tahlil qiling va unda ushbu to'rtta jinoyat yoki qonunbuzarlik belgilari borligini aniqlang:\n"
@@ -382,41 +382,20 @@ class UzbekNLPService:
                     "}"
                 )
                 
-                payload = {
-                    "contents": [
-                        {
-                            "parts": [
-                                {
-                                    "text": prompt
-                                }
-                            ]
-                        }
-                    ],
-                    "generationConfig": {
-                        "responseMimeType": "application/json"
-                    }
-                }
+                content_text = await call_gemini_api(self._api_key, prompt, response_mime_type="application/json")
                 
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=8)) as response:
-                        if response.status == 200:
-                            data = await response.json()
-                            content_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                            
-                            # Strip markdown code block notation if present
-                            if content_text.startswith("```"):
-                                content_text = re.sub(r"^```(?:json)?\s*", "", content_text)
-                                content_text = re.sub(r"\s*```$", "", content_text)
-                                
-                            result = json.loads(content_text.strip())
-                            logger.info("AI NLP tahlil muvaffaqiyatli yakunlandi.")
-                            return {
-                                "is_violation": bool(result.get("is_violation", False)),
-                                "category": result.get("category"),
-                                "reason": result.get("reason", "AI tomonidan tahlil qilindi.")
-                            }
-                        else:
-                            logger.warning(f"Gemini API xatosi: status={response.status}. Lokal rejimga o'tiladi.")
+                # Strip markdown code block notation if present
+                if content_text.startswith("```"):
+                    content_text = re.sub(r"^```(?:json)?\s*", "", content_text)
+                    content_text = re.sub(r"\s*```$", "", content_text)
+                    
+                result = json.loads(content_text.strip())
+                logger.info("AI NLP tahlil muvaffaqiyatli yakunlandi.")
+                return {
+                    "is_violation": bool(result.get("is_violation", False)),
+                    "category": result.get("category"),
+                    "reason": result.get("reason", "AI tomonidan tahlil qilindi.")
+                }
             except Exception as e:
                 logger.error(f"Gemini API bilan bog'lanishda xatolik: {e}. Lokal rejimga o'tiladi.")
 

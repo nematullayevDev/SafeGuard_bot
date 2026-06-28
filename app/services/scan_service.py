@@ -80,7 +80,8 @@ PHISHING_KEYWORDS = [
     "kapital", "agro", "xalq", "tbc", "hamkor", "sqb", "uzum", "oson", "paynet", "upay", 
     "apelsin", "davr", "infin", "aloqa", "savdo", "soliq",
     # Bait keywords
-    "mukofot", "yutuq", "aksiy", "aksiya", "sovg", "priz", "fond", "keshbek", "cashback", "daromad", "pul", "yordam", "komissiy", "komissiya", "kompensatsiy", "kompensatsiya", "premy", "bonus"
+    "mukofot", "yutuq", "aksiy", "aksiya", "sovg", "priz", "fond", "keshbek", "cashback", "daromad", "pul", "yordam", "komissiy", "komissiya", "kompensatsiy", "kompensatsiya", "premy", "bonus",
+    "promo", "promobot", "gift", "free", "giveaway", "hadya", "hafyalar", "tuhfa", "sovg'a", "sovga"
 ]
 
 OFFICIAL_SAFE_DOMAINS = {
@@ -91,7 +92,7 @@ OFFICIAL_SAFE_DOMAINS = {
 }
 
 BRAND_KEYWORDS = ["click", "payme", "anor", "nbu", "kapital", "uzcard", "humo", "soliq", "uzum", "apelsin"]
-BAIT_KEYWORDS = ["keshbek", "cashback", "promo", "bonus", "yutuq", "aksiy", "aksiya", "gift", "cabinet", "kabinet", "kirish", "login", "verify", "daromad", "pul", "yordam"]
+BAIT_KEYWORDS = ["keshbek", "cashback", "promo", "bonus", "yutuq", "aksiy", "aksiya", "gift", "cabinet", "kabinet", "kirish", "login", "verify", "daromad", "pul", "yordam", "promobot", "free", "giveaway", "hadya", "hafyalar", "tuhfa", "sovg'a", "sovga"]
 
 
 def get_registered_domain(url: str) -> str:
