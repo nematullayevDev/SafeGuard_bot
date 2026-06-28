@@ -456,7 +456,11 @@ def register(dp: Dispatcher, c: Container) -> None:
                 return
 
             response_text = await call_gemini_api(api_key, text)
-            await wait.edit_text(response_text, parse_mode="Markdown")
+            try:
+                await wait.edit_text(response_text, parse_mode="Markdown")
+            except Exception as tg_err:
+                logger.warning(f"Telegram Markdown parse failed: {tg_err}")
+                await wait.edit_text(response_text)
         except Exception as e:
             logger.error(f"AI Maslahatchi xatosi: {e}")
             await wait.edit_text(f"❌ Maslahatchi javob bera olmadi. {str(e)}.")
