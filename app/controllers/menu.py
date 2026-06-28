@@ -2,7 +2,7 @@
 import logging
 
 from aiogram import Dispatcher, F
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 
 from app.container import Container
 from app.controllers.filters import deny_if_not_owner, is_owner
