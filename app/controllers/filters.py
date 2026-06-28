@@ -8,7 +8,6 @@ from app.container import Container
 from app.core.bot import bot
 from app.core.config import settings
 from app.views.keyboards import go_start_kb
-from app.views.texts import ADMIN_ONLY_ALERT, REGISTER_FIRST
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +46,18 @@ async def ensure_registered(message: Message, container: Container) -> bool:
 
 async def deny_if_not_owner(call: CallbackQuery) -> bool:
     if not is_owner(call):
-        await call.answer(ADMIN_ONLY_ALERT, show_alert=True)
+        from app.views.texts import get_text
+        from app.repositories.base import get_conn
+        
+        lang = "uz"
+        try:
+            with get_conn() as conn:
+                row = conn.execute("SELECT language FROM users WHERE user_id = ?", (call.from_user.id,)).fetchone()
+                if row and row[0]:
+                    lang = row[0]
+        except Exception:
+            pass
+            
+        await call.answer(get_text("admin_only_alert", lang), show_alert=True)
         return True
     return False

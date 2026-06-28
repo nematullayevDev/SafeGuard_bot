@@ -420,3 +420,9 @@ def get_text(key: str, lang: str = "uz") -> str:
     """Helper to fetch localized templates. Defaults to Uzbek Latin."""
     lang_dict = LOCALIZED_TEXTS.get(lang, LOCALIZED_TEXTS["uz"])
     return lang_dict.get(key, LOCALIZED_TEXTS["uz"].get(key, ""))
+
+
+# Legacy constants for module compatibility
+ADMIN_ONLY = "👑 Ushbu buyruq faqat bot adminlari uchun!"
+ADMIN_ONLY_ALERT = "👑 Faqat bot adminlari uchun!"
+REGISTER_FIRST = "📱 Botdan foydalanish uchun ro'yxatdan o'tishingiz lozim!"
