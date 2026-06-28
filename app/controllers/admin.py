@@ -25,11 +25,18 @@ def register(dp: Dispatcher, c: Container) -> None:
 
     async def cmd_users(message: Message):
         users = c.users.all()
+        lang = c.users.get_language(message.from_user.id)
         if not users:
-            await message.answer("📋 Hali hech kim ro'yxatdan o'tmagan.")
+            no_users_text = {
+                "uz": "📋 Hali hech kim ro'yxatdan o'tmagan.",
+                "uz_cyr": "📋 Ҳали ҳеч ким рўйхатдан ўтмаган.",
+                "ru": "📋 Еще никто не зарегистрировался.",
+                "en": "📋 No users registered yet."
+            }.get(lang, "📋 Hali hech kim ro'yxatdan o'tmagan.")
+            await message.answer(no_users_text)
             return
         await message.answer(
-            formatters.users_list(users),
+            formatters.users_list(users, lang),
             parse_mode="HTML", reply_markup=users_export_kb(),
         )
 
@@ -37,7 +44,8 @@ def register(dp: Dispatcher, c: Container) -> None:
         await message.answer(ADMIN_ONLY)
 
     async def cmd_stats(message: Message):
-        await message.answer(formatters.stats_text(c.stats.get()), parse_mode="HTML")
+        lang = c.users.get_language(message.from_user.id)
+        await message.answer(formatters.stats_text(c.stats.get(), lang), parse_mode="HTML")
 
     async def cmd_broadcast(message: Message, state: FSMContext):
         await message.answer(

@@ -49,20 +49,33 @@ async def self_ping(url: str, interval: int = 600) -> None:
             await asyncio.sleep(interval)
 
 
-from aiogram.types import BotCommand
+from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats, BotCommandScopeAllChatAdministrators
 
 
 async def set_bot_commands() -> None:
-    """Set up the official Telegram commands menu list."""
-    commands = [
-        BotCommand(command="start", description="🚀 Botni ishga tushirish"),
-        BotCommand(command="menu", description="📱 Bosh menyuni ochish"),
-        BotCommand(command="quiz", description="🛡️ Kiber-Savodxonlik Viktorinasi"),
+    """Set up the official Telegram commands menu list with proper scopes."""
+    private_commands = [
+        BotCommand(command="start", description="🚀 Start the bot / Botni boshlash"),
+        BotCommand(command="menu", description="📱 Open main menu / Bosh menyu"),
+        BotCommand(command="quiz", description="🛡️ Cybersecurity quiz / Viktorina"),
+        BotCommand(command="lang", description="🌐 Change language / Tilni o'zgartirish"),
+    ]
+
+    admin_commands = [
+        BotCommand(command="settings", description="⚙️ Group settings / Guruh sozlamalari"),
+        BotCommand(command="lang", description="🌐 Group language / Guruh tili"),
+        BotCommand(command="status", description="🛡️ Protection status / Himoya holati"),
+        BotCommand(command="enable", description="✅ Enable protection / Himoyani yoqish"),
+        BotCommand(command="disable", description="❌ Disable protection / Himoyani o'chirish"),
+        BotCommand(command="warn", description="⚠️ Issue a warning / Ogohlantirish"),
+        BotCommand(command="warns", description="📋 View warnings / Ogohlantirishlar"),
+        BotCommand(command="unwarn", description="✅ Clear warnings / Ogohlantirishlarni o'chirish"),
     ]
 
     try:
-        await bot.set_my_commands(commands)
-        logger.info("✅ Bot buyruqlari muvaffaqiyatli o'rnatildi!")
+        await bot.set_my_commands(private_commands, scope=BotCommandScopeAllPrivateChats())
+        await bot.set_my_commands(admin_commands, scope=BotCommandScopeAllChatAdministrators())
+        logger.info("✅ Bot buyruqlari muvaffaqiyatli o'rnatildi (Private & Admins)!")
     except Exception as e:
         logger.warning(f"Bot buyruqlarini o'rnatishda xatolik: {e}")
 

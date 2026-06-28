@@ -56,8 +56,9 @@ def register(dp: Dispatcher, c: Container) -> None:
     async def admin_stats(call: CallbackQuery):
         if await deny_if_not_owner(call):
             return
+        lang = c.users.get_language(call.from_user.id)
         await call.message.edit_text(
-            formatters.stats_text(c.stats.get()),
+            formatters.stats_text(c.stats.get(), lang),
             reply_markup=admin_stats_kb(), parse_mode="HTML",
         )
         await call.answer()
@@ -65,8 +66,9 @@ def register(dp: Dispatcher, c: Container) -> None:
     async def admin_users(call: CallbackQuery):
         if await deny_if_not_owner(call):
             return
+        lang = c.users.get_language(call.from_user.id)
         await call.message.edit_text(
-            formatters.users_list(c.users.all()),
+            formatters.users_list(c.users.all(), lang),
             parse_mode="HTML",
             reply_markup=users_export_kb(back_cb="admin_panel"),
         )
@@ -89,16 +91,23 @@ def register(dp: Dispatcher, c: Container) -> None:
         all_groups = c.groups.all()
         active = [g for g in all_groups if g.is_active]
         inactive = [g for g in all_groups if not g.is_active]
+        
+        lang = c.users.get_language(call.from_user.id)
 
         if not all_groups:
+            no_groups_text = {
+                "uz": "🤖 <b>Bot qaysi guruhlarda</b>\n\n❗ Hali hech qanday guruhga qo'shilmagan.",
+                "uz_cyr": "🤖 <b>Бот қайси гуруҳларда</b>\n\n❗ Ҳали ҳеч қандай гуруҳга қўшилмаган.",
+                "ru": "🤖 <b>В каких группах бот</b>\n\n❗ Бот еще не добавлен ни в одну группу.",
+                "en": "🤖 <b>Groups with bot</b>\n\n❗ The bot has not been added to any group yet."
+            }.get(lang, "")
             await call.message.edit_text(
-                "🤖 <b>Bot qaysi guruhlarda</b>\n\n"
-                "❗ Hali hech qanday guruhga qo'shilmagan.",
-                reply_markup=back_button("admin_panel"), parse_mode="HTML",
+                no_groups_text,
+                reply_markup=back_button("admin_panel", lang), parse_mode="HTML",
             )
         else:
             await call.message.edit_text(
-                formatters.groups_admin_list(active, inactive),
+                formatters.groups_admin_list(active, inactive, lang),
                 reply_markup=groups_export_kb(back_cb="admin_panel"),
                 parse_mode="HTML",
             )
@@ -262,7 +271,7 @@ def register(dp: Dispatcher, c: Container) -> None:
         lang = c.users.get_language(uid)
         rows, count = c.blacklist.recent()
         await call.message.edit_text(
-            formatters.blacklist_view(rows, count),
+            formatters.blacklist_view(rows, count, lang),
             reply_markup=blacklist_menu(is_owner(call), lang),
             parse_mode="HTML",
         )
@@ -285,7 +294,7 @@ def register(dp: Dispatcher, c: Container) -> None:
         lang = c.users.get_language(uid)
         entries = c.scanner.history(uid)
         await call.message.edit_text(
-            formatters.history_list(entries), reply_markup=back_button("main_menu", lang),
+            formatters.history_list(entries, lang), reply_markup=back_button("main_menu", lang),
         )
         await call.answer()
 
@@ -378,7 +387,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
         else:
             await call.message.edit_text(
-                formatters.groups_user_list(my_groups),
+                formatters.groups_user_list(my_groups, lang),
                 reply_markup=groups_export_kb(back_cb="group_mode"),
                 parse_mode="HTML",
             )

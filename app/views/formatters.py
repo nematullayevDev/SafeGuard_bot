@@ -235,24 +235,57 @@ def blacklisted_link_warning(sender_mention: str, lang: str = "uz") -> str:
 
 
 # ─── Stats / lists ────────────────────────────────────
-def stats_text(s: BotStats) -> str:
+def stats_text(s: BotStats, lang: str = "uz") -> str:
+    title = {
+        "uz": "📊 <b>SafeGuard Bot Statistikasi</b>",
+        "uz_cyr": "📊 <b>SafeGuard Бот Статистикаси</b>",
+        "ru": "📊 <b>Статистика Бота SafeGuard</b>",
+        "en": "📊 <b>SafeGuard Bot Statistics</b>"
+    }.get(lang, "📊 <b>SafeGuard Bot Statistics</b>")
+
+    total_lbl = {"uz": "Jami foydalanuvchilar", "uz_cyr": "Жами фойдаланувчилар", "ru": "Всего пользователей", "en": "Total users"}.get(lang, "Total users")
+    today_lbl = {"uz": "Bugun qo'shilgan", "uz_cyr": "Бугун қўшилган", "ru": "Добавлено сегодня", "en": "Joined today"}.get(lang, "Joined today")
+    scans_lbl = {"uz": "Jami tekshiruvlar", "uz_cyr": "Жами текширувлар", "ru": "Всего проверок", "en": "Total scans"}.get(lang, "Total scans")
+    dang_lbl = {"uz": "Xavfli topilgan", "uz_cyr": "Хавфли топилган", "ru": "Найдено опасных", "en": "Flagged dangerous"}.get(lang, "Flagged dangerous")
+    susp_lbl = {"uz": "Shubhali topilgan", "uz_cyr": "Шубҳали топилган", "ru": "Найдено подозрительных", "en": "Flagged suspicious"}.get(lang, "Flagged suspicious")
+    
+    bl_lbl = {
+        "uz": f"📋 Qora ro'yxat: <b>{s.bl_count}</b> ta yozuv",
+        "uz_cyr": f"📋 Қора рўйхат: <b>{s.bl_count}</b> та ёзув",
+        "ru": f"📋 Черный список: <b>{s.bl_count}</b> записей",
+        "en": f"📋 Blacklist: <b>{s.bl_count}</b> entries"
+    }.get(lang, "")
+
     return (
-        "📊 <b>SafeGuard Bot Statistikasi</b>\n"
+        f"{title}\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
-        f"👥 Jami foydalanuvchilar: <b>{s.total_users}</b>\n"
-        f"🆕 Bugun qo'shilgan: <b>{s.today_users}</b>\n\n"
-        f"🔍 Jami tekshiruvlar: <b>{s.total_scans}</b>\n"
-        f"🔴 Xavfli topilgan: <b>{s.dangerous}</b>\n"
-        f"⚠️ Shubhali topilgan: <b>{s.suspicious}</b>\n\n"
-        f"📋 Qora ro'yxat: <b>{s.bl_count}</b> ta yozuv\n"
+        f"👥 {total_lbl}: <b>{s.total_users}</b>\n"
+        f"🆕 {today_lbl}: <b>{s.today_users}</b>\n\n"
+        f"🔍 {scans_lbl}: <b>{s.total_scans}</b>\n"
+        f"🔴 {dang_lbl}: <b>{s.dangerous}</b>\n"
+        f"⚠️ {susp_lbl}: <b>{s.suspicious}</b>\n\n"
+        f"{bl_lbl}\n"
         "━━━━━━━━━━━━━━━━━━━━"
     )
 
 
-def users_list(users: Sequence[User]) -> str:
+def users_list(users: Sequence[User], lang: str = "uz") -> str:
     if not users:
-        return "📋 Hali hech kim ro'yxatdan o'tmagan."
-    lines = [f"👥 <b>Foydalanuvchilar ro'yxati</b> ({len(users)} ta):\n"]
+        return {
+            "uz": "📋 Hali hech kim ro'yxatdan o'tmagan.",
+            "uz_cyr": "📋 Ҳали ҳеч ким рўйхатдан ўтмаган.",
+            "ru": "📋 Еще никто не зарегистрировался.",
+            "en": "📋 No users registered yet."
+        }.get(lang, "")
+        
+    title = {
+        "uz": f"👥 <b>Foydalanuvchilar ro'yxati</b> ({len(users)} ta):\n",
+        "uz_cyr": f"👥 <b>Фойдаланувчилар рўйхати</b> ({len(users)} та):\n",
+        "ru": f"👥 <b>Список пользователей</b> ({len(users)}):\n",
+        "en": f"👥 <b>Users list</b> ({len(users)}):\n"
+    }.get(lang, "")
+    
+    lines = [title]
     for i, u in enumerate(users, 1):
         badge = " 🛡️" if getattr(u, "quiz_passed", 0) else ""
         lines.append(
@@ -262,17 +295,30 @@ def users_list(users: Sequence[User]) -> str:
     return truncate("\n".join(lines), 3500)
 
 
-
-def history_list(entries: Sequence[HistoryEntry]) -> str:
+def history_list(entries: Sequence[HistoryEntry], lang: str = "uz") -> str:
     if not entries:
-        return "📊 Tarixingiz bo'sh.\n\nLink yoki fayl yuboring!"
+        return {
+            "uz": "📊 Tarixingiz bo'sh.\n\nLink yoki fayl yuboring!",
+            "uz_cyr": "📊 Тарихингиз бўш.\n\nЛинк ёки файл юборинг!",
+            "ru": "📊 Ваша история пуста.\n\nОтправьте ссылку или файл!",
+            "en": "📊 Your history is empty.\n\nSend a link or file!"
+        }.get(lang, "")
+        
     lines = []
     for e in entries:
         icon = "🔗" if e.item_type.value == "link" else "📦"
         v = _VERDICT_EMOJI.get(e.verdict, "❓")
         short = e.value[:30] + "..." if len(e.value) > 30 else e.value
         lines.append(f"{v} {icon} {short}\n   🕐 {e.scanned_at}")
-    return "📊 Oxirgi tekshiruvlar:\n\n" + "\n\n".join(lines)
+        
+    title = {
+        "uz": "📊 Oxirgi tekshiruvlar:\n\n",
+        "uz_cyr": "📊 Охирги текширувлар:\n\n",
+        "ru": "📊 Последние проверки:\n\n",
+        "en": "📊 Recent scans:\n\n"
+    }.get(lang, "")
+    
+    return title + "\n\n".join(lines)
 
 
 def _group_link(g: Group) -> str:
@@ -280,38 +326,54 @@ def _group_link(g: Group) -> str:
     t = g.display_title
     if g.username:
         return f'<a href="https://t.me/{g.username}">{t}</a>'
-    # Username yo'q — chat_id orqali link (supergroup va kanallar uchun ishlaydi)
     cid = str(g.chat_id)
     if cid.startswith("-100"):
         cid = cid[4:]
     elif cid.startswith("-"):
         cid = cid[1:]
-    # invite_link ham bor bo'lsa uni ishlatamiz
     if getattr(g, "invite_link", ""):
         return f'<a href="{g.invite_link}">{t}</a>'
     return f'<a href="https://t.me/c/{cid}">{t}</a>'
 
 
-def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group]) -> str:
+def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group], lang: str = "uz") -> str:
     total = len(active) + len(inactive)
+    
+    title = {
+        "uz": "🤖 <b>Bot qo'shilgan guruhlar</b>",
+        "uz_cyr": "🤖 <b>Бот қўшилган гуруҳлар</b>",
+        "ru": "🤖 <b>Группы, куда добавлен бот</b>",
+        "en": "🤖 <b>Groups with bot added</b>"
+    }.get(lang, "")
+    
+    summary = {
+        "uz": f"📊 Jami: <b>{total}</b> ta guruh\n🟢 Aktiv: <b>{len(active)}</b> ta  │  🔴 Chiqarilgan: <b>{len(inactive)}</b> ta",
+        "uz_cyr": f"📊 Жами: <b>{total}</b> та гуруҳ\n🟢 Актив: <b>{len(active)}</b> та  │  🔴 Чиқарилган: <b>{len(inactive)}</b> та",
+        "ru": f"📊 Всего: <b>{total}</b> групп\n🟢 Активных: <b>{len(active)}</b>  │  🔴 Удаленных: <b>{len(inactive)}</b>",
+        "en": f"📊 Total: <b>{total}</b> groups\n🟢 Active: <b>{len(active)}</b>  │  🔴 Removed: <b>{len(inactive)}</b>"
+    }.get(lang, "")
+
     lines = [
-        "🤖 <b>Bot qo'shilgan guruhlar</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"📊 Jami: <b>{total}</b> ta guruh\n"
-        f"🟢 Aktiv: <b>{len(active)}</b> ta  │  "
-        f"🔴 Chiqarilgan: <b>{len(inactive)}</b> ta\n"
+        title,
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        summary,
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     ]
+    
+    lbl_active = {"uz": "Aktiv guruhlar", "uz_cyr": "Актив гуруҳлар", "ru": "Активные группы", "en": "Active groups"}.get(lang, "")
+    lbl_inactive = {"uz": "Chiparilgan guruhlar", "uz_cyr": "Чиқарилган гуруҳлар", "ru": "Удаленные группы", "en": "Removed groups"}.get(lang, "")
+    lbl_members = {"uz": "a'zo", "uz_cyr": "аъзо", "ru": "участников", "en": "members"}.get(lang, "")
+    
     if active:
-        lines.append("\n🟢 <b>Aktiv guruhlar:</b>\n")
+        lines.append(f"\n🟢 <b>{lbl_active}:</b>\n")
         for i, g in enumerate(active, 1):
-            members = f"👥 {g.member_count} a'zo  │  " if getattr(g, "member_count", 0) else ""
+            members = f"👥 {g.member_count} {lbl_members}  │  " if getattr(g, "member_count", 0) else ""
             lines.append(
                 f"  <b>{i}.</b> ✅ {_group_link(g)}\n"
                 f"      {members}📅 {g.added_at or '—'}\n"
             )
     if inactive:
-        lines.append("🔴 <b>Chiqarilgan guruhlar:</b>\n")
+        lines.append(f"🔴 <b>{lbl_inactive}:</b>\n")
         for i, g in enumerate(inactive, 1):
             lines.append(
                 f"  <b>{i}.</b> ❌ {_group_link(g)}\n"
@@ -321,15 +383,31 @@ def groups_admin_list(active: Sequence[Group], inactive: Sequence[Group]) -> str
     return truncate("\n".join(lines), 3800, suffix="...")
 
 
-def groups_user_list(active: Sequence[Group]) -> str:
+def groups_user_list(active: Sequence[Group], lang: str = "uz") -> str:
+    title = {
+        "uz": "📋 <b>Himoya ostidagi guruhlar</b>",
+        "uz_cyr": "📋 <b>Ҳимоя остидаги гуруҳлар</b>",
+        "ru": "📋 <b>Группы под защитой</b>",
+        "en": "📋 <b>Protected groups</b>"
+    }.get(lang, "")
+    
+    summary = {
+        "uz": f"✅ Aktiv guruhlar: <b>{len(active)}</b> ta",
+        "uz_cyr": f"✅ Актив гуруҳлар: <b>{len(active)}</b> та",
+        "ru": f"✅ Активных групп: <b>{len(active)}</b>",
+        "en": f"✅ Active groups: <b>{len(active)}</b>"
+    }.get(lang, "")
+
     lines = [
-        "📋 <b>Himoya ostidagi guruhlar</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"✅ Aktiv guruhlar: <b>{len(active)}</b> ta\n"
+        title,
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        summary,
         "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
     ]
+    
+    lbl_members = {"uz": "a'zo", "uz_cyr": "аъзо", "ru": "участников", "en": "members"}.get(lang, "")
     for i, g in enumerate(active, 1):
-        members = f"👥 {g.member_count} a'zo  │  " if getattr(g, "member_count", 0) else ""
+        members = f"👥 {g.member_count} {lbl_members}  │  " if getattr(g, "member_count", 0) else ""
         lines.append(
             f"  <b>{i}.</b> 🛡️ {_group_link(g)}\n"
             f"      {members}📅 {g.added_at or '—'}\n"
@@ -338,20 +416,39 @@ def groups_user_list(active: Sequence[Group]) -> str:
     return truncate("\n".join(lines), 3800, suffix="...")
 
 
-def blacklist_view(rows: Sequence[tuple[str, str]], count: int) -> str:
+def blacklist_view(rows: Sequence[tuple[str, str]], count: int, lang: str = "uz") -> str:
     if not rows:
-        return "📋 <b>Qora ro'yxat hozircha bo'sh.</b>"
+        return {
+            "uz": "📋 <b>Qora ro'yxat hozircha bo'sh.</b>",
+            "uz_cyr": "📋 <b>Қора рўйхат ҳозирча бўш.</b>",
+            "ru": "📋 <b>Черный список пока пуст.</b>",
+            "en": "📋 <b>Blacklist is currently empty.</b>"
+        }.get(lang, "")
         
+    title = {
+        "uz": "📋 <b>SafeGuard — Qora ro'yxat</b>",
+        "uz_cyr": "📋 <b>SafeGuard — Қора рўйхат</b>",
+        "ru": "📋 <b>SafeGuard — Черный список</b>",
+        "en": "📋 <b>SafeGuard — Blacklist</b>"
+    }.get(lang, "")
+    
+    summary = {
+        "uz": f"🛡️ Hozirda jami: <b>{count}</b> ta xavfli havola aniqlangan.",
+        "uz_cyr": f"🛡️ Ҳозирда жами: <b>{count}</b> та хавфли ҳавола аниқланган.",
+        "ru": f"🛡️ Всего на данный момент обнаружено: <b>{count}</b> опасных ссылок.",
+        "en": f"🛡️ Total dangerous links detected: <b>{count}</b>."
+    }.get(lang, "")
+
     lines = [
-        "📋 <b>SafeGuard — Qora ro'yxat</b>",
-        f"🛡️ Hozirda jami: <b>{count}</b> ta xavfli havola aniqlangan.",
+        title,
+        summary,
         "━━━━━━━━━━━━━━━━━━━━━━━━━━"
     ]
     for idx, (val, added) in enumerate(rows, 1):
         short_val = val[:45] + "..." if len(val) > 45 else val
         lines.append(f"<b>{idx}.</b> 🚫 <code>{short_val}</code>")
         lines.append(f"   📅 <i>{added}</i>")
-        lines.append("")  # Blank line to separate entries beautifully
+        lines.append("")
         
     if lines[-1] == "":
         lines.pop()
