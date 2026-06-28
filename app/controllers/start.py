@@ -184,7 +184,20 @@ def register(dp: Dispatcher, c: Container) -> None:
 
             await message.answer(
                 get_text("welcome", lang).format(name=name),
-                reply_markup=main_menu(is_owner(message), lang),
+                reply_markup=keyboards.main_reply_menu(lang),
+                parse_mode="HTML",
+            )
+            
+            protect_title = {
+                "uz": "🛡️ <b>SafeGuard Kiber-Himoya Tizimi</b>\n\nUshbu panel orqali kiberxavfsizlik modullarini boshqarishingiz, kiber-viktorinada qatnashishingiz va AI yordamchidan maslahat olishingiz mumkin.\n\nQuyidagi tugmalardan birini tanlang:",
+                "uz_cyr": "🛡️ <b>SafeGuard Кибер-Ҳимоя Тизими</b>\n\nУшбу панел орқали киберхавфсизлик модулларини бошқаришингиз, кибер-викторинада қатнашишингиз ва AI ёрдамчидан маслаҳат олишингиз мумкин.\n\nҚуйидаги тугмалардан бирини танланг:",
+                "ru": "🛡️ <b>Система Киберзащиты SafeGuard</b>\n\nЧерез эту панель вы можете управлять модулями кибербезопасности, участвовать в кибер-викторине и консультироваться с ИИ-помощником.\n\nВыберите одну из кнопок ниже:",
+                "en": "🛡️ <b>SafeGuard Cyber-Protection System</b>\n\nThrough this panel you can manage cybersecurity modules, participate in the cyber-quiz, and consult with the AI assistant.\n\nSelect one of the buttons below:"
+            }.get(lang, "")
+            
+            await message.answer(
+                protect_title,
+                reply_markup=keyboards.protection_panel_kb(lang),
                 parse_mode="HTML",
             )
             return
@@ -420,7 +433,20 @@ def register(dp: Dispatcher, c: Container) -> None:
         else:
             await message.answer(
                 get_text("welcome", lang).format(name=name),
-                reply_markup=main_menu(is_owner(message), lang),
+                reply_markup=keyboards.main_reply_menu(lang),
+                parse_mode="HTML",
+            )
+            
+            protect_title = {
+                "uz": "🛡️ <b>SafeGuard Kiber-Himoya Tizimi</b>\n\nUshbu panel orqali kiberxavfsizlik modullarini boshqarishingiz, kiber-viktorinada qatnashishingiz va AI yordamchidan maslahat olishingiz mumkin.\n\nQuyidagi tugmalardan birini tanlang:",
+                "uz_cyr": "🛡️ <b>SafeGuard Кибер-Ҳимоя Тизими</b>\n\nУшбу панел орқали киберхавфсизлик модулларини бошқаришингиз, кибер-викторинада қатнашишингиз ва AI ёрдамчидан маслаҳат олишингиз мумкин.\n\nҚуйидаги тугмалардан бирини танланг:",
+                "ru": "🛡️ <b>Система Киберзащиты SafeGuard</b>\n\nЧерез эту панель вы можете управлять модулями кибербезопасности, участвовать в кибер-викторине и консультироваться с ИИ-помощником.\n\nВыберите одну из кнопок ниже:",
+                "en": "🛡️ <b>SafeGuard Cyber-Protection System</b>\n\nThrough this panel you can manage cybersecurity modules, participate in the cyber-quiz, and consult with the AI assistant.\n\nSelect one of the buttons below:"
+            }.get(lang, "")
+            
+            await message.answer(
+                protect_title,
+                reply_markup=keyboards.protection_panel_kb(lang),
                 parse_mode="HTML",
             )
 

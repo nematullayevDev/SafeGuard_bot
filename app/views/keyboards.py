@@ -485,3 +485,141 @@ def channel_subscribe_kb(channel_username: str, lang: str = "uz") -> InlineKeybo
             callback_data="check_subscription",
         )],
     ])
+
+
+def main_reply_menu(lang: str = "uz") -> ReplyKeyboardMarkup:
+    btn_protect = {
+        "uz": "🛡️ Himoya Paneli",
+        "uz_cyr": "🛡️ Ҳимоя Панели",
+        "ru": "🛡️ Панель Защиты",
+        "en": "🛡️ Protection Panel"
+    }.get(lang, "🛡️ Himoya Paneli")
+    
+    btn_stats = {
+        "uz": "📊 Statistika",
+        "uz_cyr": "📊 Статистика",
+        "ru": "📊 Статистика",
+        "en": "📊 Statistics"
+    }.get(lang, "📊 Statistika")
+    
+    btn_settings = {
+        "uz": "⚙️ Sozlamalar",
+        "uz_cyr": "⚙️ Созламалар",
+        "ru": "⚙️ Настройки",
+        "en": "⚙️ Settings"
+    }.get(lang, "⚙️ Sozlamalar")
+    
+    btn_help = {
+        "uz": "ℹ️ Yordam",
+        "uz_cyr": "ℹ️ Ёрдам",
+        "ru": "ℹ️ Помощь",
+        "en": "ℹ️ Help"
+    }.get(lang, "ℹ️ Yordam")
+    
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=btn_protect), KeyboardButton(text=btn_stats)],
+            [KeyboardButton(text=btn_settings), KeyboardButton(text=btn_help)]
+        ],
+        resize_keyboard=True
+    )
+
+
+def protection_panel_kb(lang: str = "uz") -> InlineKeyboardMarkup:
+    btn_history = {"uz": "📊 Tarixim", "uz_cyr": "📊 Тарихим", "ru": "📊 Моя История", "en": "📊 My History"}.get(lang, "📊 My History")
+    btn_ai = {"uz": "🤖 AI Maslahatchi", "uz_cyr": "🤖 AI Маслаҳатчи", "ru": "🤖 ИИ-Консультант", "en": "🤖 AI Consultant"}.get(lang, "🤖 AI Consultant")
+    
+    btn_quiz = {"uz": "🛡️ Kiber-Viktorina", "uz_cyr": "🛡️ Кибер-Викторина", "ru": "🛡️ Кибер-Викторина", "en": "🛡️ Cyber-Quiz"}.get(lang, "🛡️ Cyber-Quiz")
+    btn_banned = {"uz": "🌐 Taqiqlangan Saytlar", "uz_cyr": "🌐 Тақиқланган Сайтлар", "ru": "🌐 Запрещенные Сайты", "en": "🌐 Banned Sites"}.get(lang, "🌐 Banned Sites")
+    
+    btn_group = {"uz": "👥 Guruh Rejimi", "uz_cyr": "👥 Гуруҳ Режими", "ru": "👥 Режим Групп", "en": "👥 Group Mode"}.get(lang, "👥 Group Mode")
+    btn_commands = {"uz": "📂 Buyruqlar", "uz_cyr": "📂 Буйруқлар", "ru": "📂 Команды", "en": "📂 Commands"}.get(lang, "📂 Commands")
+    
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=btn_history, callback_data="history"),
+            InlineKeyboardButton(text=btn_ai, callback_data="ai_assistant")
+        ],
+        [
+            InlineKeyboardButton(text=btn_quiz, callback_data="quiz_main"),
+            InlineKeyboardButton(text=btn_banned, callback_data="banned_sites_main")
+        ],
+        [
+            InlineKeyboardButton(text=btn_group, callback_data="group_mode"),
+            InlineKeyboardButton(text=btn_commands, callback_data="commands")
+        ]
+    ])
+
+
+def settings_panel_kb(is_spam_on: bool, lang: str = "uz") -> InlineKeyboardMarkup:
+    status_str = {
+        "uz": "Yoqilgan" if is_spam_on else "O'chirilgan",
+        "uz_cyr": "Ёқилган" if is_spam_on else "Ўчирилган",
+        "ru": "Включен" if is_spam_on else "Выключен",
+        "en": "Enabled" if is_spam_on else "Disabled"
+    }.get(lang, "")
+    
+    btn_spam = f"🚫 Spam Filter [{status_str}]"
+    
+    btn_blacklist = {
+        "uz": "📝 Qora Ro'yxat",
+        "uz_cyr": "📝 Қора Рўйхат",
+        "ru": "📝 Черный Список",
+        "en": "📝 Blacklist"
+    }.get(lang, "")
+    
+    btn_lang = {
+        "uz": "🌐 Tilni o'zgartirish",
+        "uz_cyr": "🌐 Тилни ўзгартириш",
+        "ru": "🌐 Сменить язык",
+        "en": "🌐 Change language"
+    }.get(lang, "")
+    
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=btn_spam, callback_data="spam_filter_toggle")],
+        [InlineKeyboardButton(text=btn_blacklist, callback_data="blacklist")],
+        [InlineKeyboardButton(text=btn_lang, callback_data="change_language_private")]
+    ])
+
+
+def stats_panel_kb(is_admin_user: bool = False, lang: str = "uz") -> InlineKeyboardMarkup:
+    if not is_admin_user:
+        btn_refresh = {
+            "uz": "🔄 Yangilash",
+            "uz_cyr": "🔄 Янгилаш",
+            "ru": "🔄 Обновить",
+            "en": "🔄 Refresh"
+        }.get(lang, "🔄 Refresh")
+        return InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=btn_refresh, callback_data="refresh_user_stats")]
+        ])
+        
+    btn_users = {"uz": "👥 Foydalanuvchilar", "uz_cyr": "👥 Фойдаланувчилар", "ru": "👥 Пользователи", "en": "👥 Users"}.get(lang, "")
+    btn_stats = {"uz": "📊 Statistika", "uz_cyr": "📊 Статистика", "ru": "📊 Статистика", "en": "📊 Statistics"}.get(lang, "")
+    
+    btn_sync = {"uz": "🏛 Davlat Integratsiyasi", "uz_cyr": "🏛 Давлат Интеграцияси", "ru": "🏛 Гос. Интеграция", "en": "🏛 Gov. Sync"}.get(lang, "")
+    btn_forensics = {"uz": "📂 Kiber-Tergov", "uz_cyr": "📂 Кибер-Тергов", "ru": "📂 Кибер-Расследование", "en": "📂 Forensics"}.get(lang, "")
+    
+    btn_groups = {"uz": "🤖 Bot qaysi guruhlarda", "uz_cyr": "🤖 Бот қайси гуруҳларда", "ru": "🤖 В каких группах бот", "en": "🤖 Bot groups"}.get(lang, "")
+    
+    btn_broadcast = {"uz": "📢 Broadcast", "uz_cyr": "📢 Броадкаст", "ru": "📢 Рассылка", "en": "📢 Broadcast"}.get(lang, "")
+    btn_backup = {"uz": "💾 Baza Zaxirasi", "uz_cyr": "💾 База Захираси", "ru": "💾 Бэкап Базы", "en": "💾 DB Backup"}.get(lang, "")
+    
+    btn_banned = {"uz": "🚫 Taqiqlangan Saytlar (Admin)", "uz_cyr": "🚫 Тақиқланган Сайтлар (Админ)", "ru": "🚫 Запрещенные Сайты (Админ)", "en": "🚫 Banned Sites (Admin)"}.get(lang, "")
+    
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=btn_users, callback_data="admin_users"),
+            InlineKeyboardButton(text=btn_stats, callback_data="admin_stats"),
+        ],
+        [
+            InlineKeyboardButton(text=btn_sync, callback_data="admin_state_sync"),
+            InlineKeyboardButton(text=btn_forensics, callback_data="admin_forensics_main"),
+        ],
+        [InlineKeyboardButton(text=btn_groups, callback_data="admin_groups")],
+        [
+            InlineKeyboardButton(text=btn_broadcast, callback_data="admin_broadcast"),
+            InlineKeyboardButton(text=btn_backup, callback_data="admin_backup"),
+        ],
+        [InlineKeyboardButton(text=btn_banned, callback_data="admin_banned_sites")]
+    ])
