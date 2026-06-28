@@ -115,6 +115,14 @@ async def _tip_loop(bot: Bot, container: Container) -> None:
             await asyncio.sleep(wait)
             logger.info("⏰ Kunlik maslahat yuborilmoqda...")
             await run_daily_tip(bot, container)
+        except asyncio.CancelledError:
+            logger.info("Tip loop bekor qilindi.")
+            break
+        except Exception as e:
+            logger.error(f"Tip loopda xatolik: {e}")
+            await asyncio.sleep(60)
+
+
 async def _premium_expiration_loop(bot: Bot, container: Container) -> None:
     """Checks for active premium subscriptions that expire soon or have expired."""
     while True:
