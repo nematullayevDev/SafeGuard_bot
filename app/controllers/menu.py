@@ -2,7 +2,7 @@
 import logging
 
 from aiogram import Dispatcher, F
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
 
 from app.container import Container
 from app.controllers.filters import deny_if_not_owner, is_owner
@@ -36,16 +36,9 @@ def register(dp: Dispatcher, c: Container) -> None:
     async def home(call: CallbackQuery):
         uid = call.from_user.id
         lang = c.users.get_language(uid)
-        protect_title = {
-            "uz": "🛡️ <b>SafeGuard Kiber-Himoya Tizimi</b>\n\nUshbu panel orqali kiberxavfsizlik modullarini boshqarishingiz, kiber-viktorinada qatnashishingiz va AI yordamchidan maslahat olishingiz mumkin.\n\nQuyidagi tugmalardan birini tanlang:",
-            "uz_cyr": "🛡️ <b>SafeGuard Кибер-Ҳимоя Тизими</b>\n\nУшбу панел орқали киберхавфсизлик модулларини бошқаришингиз, кибер-викторинада қатнашишингиз ва AI ёрдамчидан маслаҳат олишингиз мумкин.\n\nҚуйидаги тугмалардан бирини танланг:",
-            "ru": "🛡️ <b>Система Киберзащиты SafeGuard</b>\n\nЧерез эту панель вы можете управлять модулями кибербезопасности, участвовать в кибер-викторине и консультироваться с ИИ-помощником.\n\nВыберите одну из кнопок ниже:",
-            "en": "🛡️ <b>SafeGuard Cyber-Protection System</b>\n\nThrough this panel you can manage cybersecurity modules, participate in the cyber-quiz, and consult with the AI assistant.\n\nSelect one of the buttons below:"
-        }.get(lang, "")
-        
         await call.message.edit_text(
-            protect_title,
-            reply_markup=keyboards.protection_panel_kb(lang),
+            get_text("welcome", lang).format(name=call.from_user.first_name or "Foydalanuvchi"),
+            reply_markup=main_menu(is_owner(call), lang),
             parse_mode="HTML",
         )
         await call.answer()
@@ -400,149 +393,9 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
         await call.answer()
 
-    # ─── Persistent reply menu message handlers ───
-    async def msg_protect_panel(message: Message):
-        uid = message.from_user.id
-        lang = c.users.get_language(uid)
-        
-        protect_title = {
-            "uz": "🛡️ <b>SafeGuard Kiber-Himoya Tizimi</b>\n\nUshbu panel orqali kiberxavfsizlik modullarini boshqarishingiz, kiber-viktorinada qatnashishingiz va AI yordamchidan maslahat olishingiz mumkin.\n\nQuyidagi tugmalardan birini tanlang:",
-            "uz_cyr": "🛡️ <b>SafeGuard Кибер-Ҳимоя Тизими</b>\n\nУшбу панел орқали киберхавфсизлик модулларини бошқаришингиз, кибер-викторинада qатнашишингиз ва AI ёрдамчиdan маслаҳат олишингиз мумкин.\n\nҚуйидаги тугмалардан бирини танланг:",
-            "ru": "🛡️ <b>Система Киберзащиты SafeGuard</b>\n\nЧерез эту панель вы можете управлять модулями кибербезопасности, участвовать в кибер-викторине и консультироваться с ИИ-помощником.\n\nВыберите одну из кнопок ниже:",
-            "en": "🛡️ <b>SafeGuard Cyber-Protection System</b>\n\nThrough this panel you can manage cybersecurity modules, participate in the cyber-quiz, and consult with the AI assistant.\n\nSelect one of the buttons below:"
-        }.get(lang, "")
-        
-        await message.answer(
-            protect_title,
-            reply_markup=keyboards.protection_panel_kb(lang),
-            parse_mode="HTML",
-        )
-
-    async def msg_stats_panel(message: Message):
-        uid = message.from_user.id
-        lang = c.users.get_language(uid)
-        is_admin = uid == settings.admin_id
-        
-        await message.answer(
-            formatters.stats_text(c.stats.get(), lang),
-            reply_markup=keyboards.stats_panel_kb(is_admin, lang),
-            parse_mode="HTML",
-        )
-
-    async def msg_settings_panel(message: Message):
-        uid = message.from_user.id
-        lang = c.users.get_language(uid)
-        is_on = c.user_settings.get_spam_filter(uid)
-        
-        title = {
-            "uz": "⚙️ <b>Sozlamalar bo'limi</b>\n\nSpam filtri holatini o'zgartirishingiz, qora ro'yxatni ko'rishingiz yoki muloqot tilini o'zgartirishingiz mumkin:",
-            "uz_cyr": "⚙️ <b>Созламалар бўлими</b>\n\nСпам фильтри ҳолатини ўзгартиришингиз, қора рўйхатни кўришингиз ёки мулоқот тилини ўзгартиришингиз мумкин:",
-            "ru": "⚙️ <b>Раздел Настроек</b>\n\nВы можете изменить статус спам-фильтра, просмотреть черный список или сменить язык общения:",
-            "en": "⚙️ <b>Settings Section</b>\n\nYou can change spam filter status, view the blacklist, or change the communication language:"
-        }.get(lang, "")
-        
-        await message.answer(
-            title,
-            reply_markup=keyboards.settings_panel_kb(is_on, lang),
-            parse_mode="HTML",
-        )
-
-    async def msg_help_panel(message: Message):
-        uid = message.from_user.id
-        lang = c.users.get_language(uid)
-        
-        help_title = {
-            "uz": (
-                "ℹ️ <b>Yordam bo'limi</b>\n\n"
-                "SafeGuard Bot — guruhlarni fishing linklar, viruslar va xavfli fayllardan himoya qiluvchi premium tizimdir.\n\n"
-                "💡 <b>Asosiy buyruqlar:</b>\n"
-                "▫️ /start — Botni ishga tushirish\n"
-                "▫️ /menu — Bosh menyuni ochish\n"
-                "▫️ /quiz — Kiber-Viktorinada qatnashish\n"
-                "▫️ /lang — Muloqot tilini o'zgartirish\n\n"
-                "Guruhlarni himoya qilish uchun botni guruhingizga qo'shing va unga administrator huquqini bering."
-            ),
-            "uz_cyr": (
-                "ℹ️ <b>Ёрдам бўлими</b>\n\n"
-                "SafeGuard Bot — гуруҳларни фишинг линклар, вируслар ва хавфли файллардан ҳимоя қилувчи премиум тизимдир.\n\n"
-                "💡 <b>Асосий буйруқлар:</b>\n"
-                "▫️ /start — Ботни ишга тушириш\n"
-                "▫️ /menu — Бош менюни очиш\n"
-                "▫️ /quiz — Кибер-Викторинада қатнашиш\n"
-                "▫️ /lang — Мулоқот тилини ўзгартириш\n\n"
-                "Гуруҳларни ҳимоя қилиш учун ботни гуруҳингизга қўшинг ва унга администратор ҳуқуқини беринг."
-            ),
-            "ru": (
-                "ℹ️ <b>Раздел Помощи</b>\n\n"
-                "SafeGuard Bot — это премиальная система для защиты групп от фишинговых ссылок, вирусов и опасных файлов.\n\n"
-                "💡 <b>Основные команды:</b>\n"
-                "▫️ /start — Запустить бота\n"
-                "▫️ /menu — Открыть главное меню\n"
-                "▫️ /quiz — Пройти кибер-викторину\n"
-                "▫️ /lang — Сменить язык общения\n\n"
-                "Для защиты групп добавьте бота в свою группу и предоставьте ему права администратора."
-            ),
-            "en": (
-                "ℹ️ <b>Help Section</b>\n\n"
-                "SafeGuard Bot is a premium system for protecting groups from phishing links, viruses, and dangerous files.\n\n"
-                "💡 <b>Main Commands:</b>\n"
-                "▫️ /start — Start the bot\n"
-                "▫️ /menu — Open main menu\n"
-                "▫️ /quiz — Take the Cyber-Quiz\n"
-                "▫️ /lang — Change communication language\n\n"
-                "To protect groups, add the bot to your group and grant it admin permissions."
-            )
-        }.get(lang, "")
-        
-        await message.answer(
-            help_title,
-            reply_markup=keyboards.back_button("main_menu", lang),
-            parse_mode="HTML",
-        )
-
-    # ─── Settings callbacks ───
-    async def spam_filter_toggle(call: CallbackQuery):
-        uid = call.from_user.id
-        lang = c.users.get_language(uid)
-        is_on = c.user_settings.get_spam_filter(uid)
-        new_state = not is_on
-        c.user_settings.set_spam_filter(uid, new_state)
-        
-        confirm = {
-            "uz": f"🚫 Spam Filter — {'✅ Yoqildi!' if new_state else '❌ O\'chirildi.'}",
-            "uz_cyr": f"🚫 Спам Фильтр — {'✅ Ёқилди!' if new_state else '❌ Ўчирилди.'}",
-            "ru": f"🚫 Спам Фильтр — {'✅ Включен!' if new_state else '❌ Отключен.'}",
-            "en": f"🚫 Spam Filter — {'✅ Enabled!' if new_state else '❌ Disabled.'}"
-        }.get(lang, "")
-        
-        await call.answer(confirm)
-        await call.message.edit_reply_markup(
-            reply_markup=keyboards.settings_panel_kb(new_state, lang)
-        )
-
-    async def refresh_user_stats(call: CallbackQuery):
-        uid = call.from_user.id
-        lang = c.users.get_language(uid)
-        await call.message.edit_text(
-            formatters.stats_text(c.stats.get(), lang),
-            reply_markup=keyboards.stats_panel_kb(False, lang),
-            parse_mode="HTML",
-        )
-        await call.answer()
-
     # Registrations
     dp.callback_query.register(go_start, F.data == "go_start")
     dp.callback_query.register(home, F.data == "main_menu")
-
-    # Reply keyboard message registrations
-    dp.message.register(msg_protect_panel, F.chat.type == "private", F.text.in_(["🛡️ Himoya Paneli", "🛡️ Ҳимоя Панели", "🛡️ Панель Защиты", "🛡️ Protection Panel"]))
-    dp.message.register(msg_stats_panel, F.chat.type == "private", F.text.in_(["📊 Statistika", "📊 Статистика", "📊 Statistics"]))
-    dp.message.register(msg_settings_panel, F.chat.type == "private", F.text.in_(["⚙️ Sozlamalar", "⚙️ Созламалар", "⚙️ Настройки", "⚙️ Settings"]))
-    dp.message.register(msg_help_panel, F.chat.type == "private", F.text.in_(["ℹ️ Yordam", "ℹ️ Ёрдам", "ℹ️ Помощь", "ℹ️ Help"]))
-
-    # Callback registrations
-    dp.callback_query.register(spam_filter_toggle, F.data == "spam_filter_toggle")
-    dp.callback_query.register(refresh_user_stats, F.data == "refresh_user_stats")
 
     dp.callback_query.register(admin_panel, F.data == "admin_panel")
     dp.callback_query.register(admin_stats, F.data == "admin_stats")
