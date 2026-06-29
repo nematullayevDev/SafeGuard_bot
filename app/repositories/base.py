@@ -23,8 +23,24 @@ def get_pg_pool():
         try:
             import psycopg2
             from psycopg2 import pool
+            from urllib.parse import urlparse, unquote
             logger.info("Initializing PostgreSQL Connection Pool...")
-            PG_POOL = pool.SimpleConnectionPool(1, 20, settings.database_url)
+            
+            url = urlparse(settings.database_url)
+            username = unquote(url.username or "")
+            password = unquote(url.password or "")
+            database = unquote(url.path[1:] if url.path else "")
+            host = url.hostname
+            port = url.port or 5432
+            
+            PG_POOL = pool.SimpleConnectionPool(
+                1, 20,
+                user=username,
+                password=password,
+                host=host,
+                port=port,
+                database=database
+            )
         except ImportError:
             logger.error("psycopg2-binary is not installed! Cannot connect to PostgreSQL.")
             raise
