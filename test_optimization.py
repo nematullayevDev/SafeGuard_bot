@@ -21,6 +21,7 @@ def setup_test_db():
         conn.execute("DELETE FROM group_subscriptions")
         conn.execute("DELETE FROM ai_quota_usage")
         conn.execute("DELETE FROM groups")
+        conn.execute("DELETE FROM users")
 
 async def test_url_cache():
     print("--- Testing URL Cache ---")

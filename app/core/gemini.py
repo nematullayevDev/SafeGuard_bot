@@ -12,9 +12,8 @@ async def get_active_model(api_key: str) -> str:
         return ACTIVE_MODEL
 
     candidates = [
-        "gemini-3.5-flash",
-        "gemini-3.1-flash-lite",
         "gemini-1.5-flash",
+        "gemini-1.5-pro",
         "gemini-pro"
     ]
     try:
@@ -40,10 +39,11 @@ async def get_active_model(api_key: str) -> str:
     ACTIVE_MODEL = candidates[0]
     return ACTIVE_MODEL
 
+
 async def call_gemini_api(api_key: str, prompt: str, response_mime_type: str = "text/plain") -> str:
     primary_model = await get_active_model(api_key)
     models_to_try = [primary_model]
-    for m in ["gemini-3.1-flash-lite", "gemini-1.5-flash", "gemini-pro"]:
+    for m in ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"]:
         if m not in models_to_try:
             models_to_try.append(m)
 
