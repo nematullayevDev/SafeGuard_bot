@@ -18,15 +18,20 @@ class UserRepository(BaseRepository):
             language=row[7] if len(row) > 7 else "uz",
         )
 
-    def save(self, user_id: int, first_name: str, username: str, phone: str, language: str = "uz") -> None:
+    def save(self, user_id: int, first_name: str, username: str, phone: str, language: str = "uz", referred_by: int = 0) -> None:
         with get_conn() as conn:
             conn.execute(
                 """
-                INSERT OR REPLACE INTO users (user_id, first_name, username, phone, registered_at, language)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO users (user_id, first_name, username, phone, registered_at, language, referred_by, referral_count)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 0)
+                ON CONFLICT(user_id) DO UPDATE SET
+                    first_name = excluded.first_name,
+                    username = excluded.username,
+                    phone = excluded.phone,
+                    language = excluded.language
                 """,
                 (user_id, first_name, username or "", phone,
-                 datetime.now().strftime("%d.%m.%Y %H:%M"), language),
+                 datetime.now().strftime("%d.%m.%Y %H:%M"), language, referred_by),
             )
 
     def is_registered(self, user_id: int) -> bool:
@@ -72,3 +77,8 @@ class UserRepository(BaseRepository):
     def set_language(self, user_id: int, lang: str) -> None:
         with get_conn() as conn:
             conn.execute("UPDATE users SET language = ? WHERE user_id = ?", (lang, user_id))
+
+    def get_referred_count(self, user_id: int) -> int:
+        with get_conn() as conn:
+            row = conn.execute("SELECT referral_count FROM users WHERE user_id = ?", (user_id,)).fetchone()
+        return row[0] if row else 0

@@ -93,17 +93,44 @@ async def test_group_quota():
     assert usage == 1, "Usage should increment to 1"
     
     # 4. Activate Premium for User
-    c.subscriptions.activate_user_premium(user_id, 30)
+    c.subscriptions.activate_user_premium(user_id, 30, "1 oylik")
     plan = c.subscriptions.get_group_plan(chat_id)
     assert plan["plan"] == "premium", "Group should be premium because creator is premium"
+    assert plan["plan_label"] == "1 oylik"
     
     print("[OK] Group quota checks passed!")
+
+async def test_referral_system():
+    print("--- Testing Referral System ---")
+    c = build_container()
+    
+    # Register referrer
+    c.users.save(999, "Referrer", "ref_user", "998901234567")
+    
+    # Save a referred user
+    c.users.save(888, "Referred User", "ref_u2", "998907654321", referred_by=999)
+    
+    # Simulate increment
+    with get_conn() as conn:
+        conn.execute("UPDATE users SET referral_count = referral_count + 1 WHERE user_id = 999")
+        
+    ref_count = c.users.get_referred_count(999)
+    assert ref_count == 1, "Referrer should have 1 referral"
+    
+    # Test activate user premium with label
+    c.subscriptions.activate_user_premium(999, 7, "1 haftalik")
+    plan = c.subscriptions.get_user_plan(999)
+    assert plan["plan"] == "premium"
+    assert plan["plan_label"] == "1 haftalik"
+    
+    print("[OK] Referral system checks passed!")
 
 async def run_all():
     setup_test_db()
     await test_url_cache()
     await test_nlp_cache()
     await test_group_quota()
+    await test_referral_system()
     print("ALL TESTS PASSED SUCCESSFULLY!")
 
 if __name__ == "__main__":

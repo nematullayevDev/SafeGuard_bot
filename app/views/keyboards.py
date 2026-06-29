@@ -51,25 +51,20 @@ def group_language_selection_kb(chat_id: int, lang: str = "uz") -> InlineKeyboar
 
 
 def main_menu(is_admin_user: bool = False, lang: str = "uz") -> InlineKeyboardMarkup:
-    btn_spam = {"uz": "🚫 Spam Filter", "uz_cyr": "🚫 Спам Фильтр", "ru": "🚫 Спам Фильтр", "en": "🚫 Spam Filter"}.get(lang, "🚫 Spam Filter")
     btn_blacklist = {"uz": "📋 Qora Ro'yxat", "uz_cyr": "📋 Қора Рўйхат", "ru": "📋 Черный Список", "en": "📋 Blacklist"}.get(lang, "📋 Blacklist")
-    btn_history = {"uz": "📊 Tarixim", "uz_cyr": "📊 Тарихим", "ru": "📊 Моя История", "en": "📊 My History"}.get(lang, "📊 My History")
     btn_group = {"uz": "👥 Guruh Rejimi", "uz_cyr": "👥 Гуруҳ Режими", "ru": "👥 Режим Групп", "en": "👥 Group Mode"}.get(lang, "👥 Group Mode")
     btn_ai = {"uz": "🤖 AI Maslahatchi", "uz_cyr": "🤖 AI Маслаҳатчи", "ru": "🤖 ИИ-Консультант", "en": "🤖 AI Consultant"}.get(lang, "🤖 AI Consultant")
-    btn_banned = {"uz": "🌐 Taqiqlangan Saytlar", "uz_cyr": "🌐 Тақиқланган Сайтлар", "ru": "🌐 Запрещенные Сайты", "en": "🌐 Banned Sites"}.get(lang, "🌐 Banned Sites")
+    btn_banned = {"uz": "🌐 Taqiqlangan Saytlar", "uz_cyr": "🌐 Тақиқланган Сайтlar", "ru": "🌐 Запрещенные Сайты", "en": "🌐 Banned Sites"}.get(lang, "🌐 Banned Sites")
     btn_quiz = {"uz": "🛡️ Kiber-Viktorina", "uz_cyr": "🛡️ Кибер-Викторина", "ru": "🛡️ Кибер-Викторина", "en": "🛡️ Cyber-Quiz"}.get(lang, "🛡️ Cyber-Quiz")
     btn_commands = {"uz": "📂 Buyruqlar", "uz_cyr": "📂 Буйруқлар", "ru": "📂 Команды", "en": "📂 Commands"}.get(lang, "📂 Commands")
     btn_help = {"uz": "ℹ️ Yordam", "uz_cyr": "ℹ️ Ёрдам", "ru": "ℹ️ Помощь", "en": "ℹ️ Help"}.get(lang, "ℹ️ Help")
     btn_lang = {"uz": "🌐 Tilni o'zgartirish", "uz_cyr": "🌐 Тилни ўзгартириш", "ru": "🌐 Сменить язык", "en": "🌐 Change language"}.get(lang, "🌐 Change language")
+    btn_cabinet = {"uz": "👤 Kabinet", "uz_cyr": "👤 Кабинет", "ru": "👤 Личный Кабинет", "en": "👤 Cabinet"}.get(lang, "👤 Cabinet")
     btn_admin = {"uz": "👑 Admin Paneli", "uz_cyr": "👑 Админ Панели", "ru": "👑 Панель Админа", "en": "👑 Admin Panel"}.get(lang, "👑 Admin Panel")
 
     rows = [
         [
-            InlineKeyboardButton(text=btn_spam, callback_data="spam_filter"),
             InlineKeyboardButton(text=btn_blacklist, callback_data="blacklist"),
-        ],
-        [
-            InlineKeyboardButton(text=btn_history, callback_data="history"),
             InlineKeyboardButton(text=btn_group, callback_data="group_mode"),
         ],
         [
@@ -84,13 +79,40 @@ def main_menu(is_admin_user: bool = False, lang: str = "uz") -> InlineKeyboardMa
             InlineKeyboardButton(text=btn_help, callback_data="help"),
             InlineKeyboardButton(text=btn_lang, callback_data="change_language_private"),
         ],
+        [
+            InlineKeyboardButton(text=btn_cabinet, callback_data="open_cabinet"),
+        ]
     ]
-    btn_premium = {"uz": "💎 Premium", "uz_cyr": "💎 Премиум", "ru": "💎 Премиум", "en": "💎 Premium"}.get(lang, "💎 Premium")
-    rows.append([InlineKeyboardButton(text=btn_premium, callback_data="open_premium")])
 
     if is_admin_user:
         rows.append([InlineKeyboardButton(text=btn_admin, callback_data="admin_panel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def cabinet_menu(lang: str = "uz") -> InlineKeyboardMarkup:
+    btn_spam = {"uz": "🚫 Spam Filter", "uz_cyr": "🚫 Спам Фильтр", "ru": "🚫 Spam Фильтр", "en": "🚫 Spam Filter"}.get(lang, "")
+    btn_history = {"uz": "📊 Tarixim", "uz_cyr": "📊 Тарихим", "ru": "📊 Моя История", "en": "📊 My History"}.get(lang, "")
+    btn_premium = {"uz": "💎 Premium Sotib Olish", "uz_cyr": "💎 Премиум Сотиб Олиш", "ru": "💎 Купить Премиум", "en": "💎 Purchase Premium"}.get(lang, "")
+    btn_my_groups = {"uz": "👥 Guruhlarim", "uz_cyr": "👥 Гуруҳларим", "ru": "👥 Мои Группы", "en": "👥 My Groups"}.get(lang, "")
+    btn_invite = {"uz": "🔗 Taklif havolasi", "uz_cyr": "🔗 Таклиф ҳаволаси", "ru": "🔗 Реферальная ссылка", "en": "🔗 Invite Link"}.get(lang, "")
+    btn_back = {"uz": "🔙 Orqaga", "uz_cyr": "🔙 Орқага", "ru": "🔙 Назад", "en": "🔙 Back"}.get(lang, "")
+
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text=btn_spam, callback_data="spam_filter"),
+            InlineKeyboardButton(text=btn_history, callback_data="history"),
+        ],
+        [
+            InlineKeyboardButton(text=btn_my_groups, callback_data="my_groups"),
+            InlineKeyboardButton(text=btn_premium, callback_data="open_premium"),
+        ],
+        [
+            InlineKeyboardButton(text=btn_invite, callback_data="invite_friends"),
+        ],
+        [
+            InlineKeyboardButton(text=btn_back, callback_data="main_menu"),
+        ]
+    ])
 
 
 def admin_panel_menu() -> InlineKeyboardMarkup:

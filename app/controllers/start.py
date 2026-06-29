@@ -265,8 +265,59 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
             return
 
-        c.users.save(uid, name, username, phone, lang)
+        is_new_user = not c.users.is_registered(uid)
+        referred_by = 0
+        if is_new_user and payload and payload.startswith("ref_"):
+            try:
+                ref_id = int(payload.split("_")[1])
+                if ref_id != uid and c.users.is_registered(ref_id):
+                    referred_by = ref_id
+            except (ValueError, IndexError):
+                pass
+
+        c.users.save(uid, name, username, phone, lang, referred_by=referred_by)
         await state.clear()
+
+        # Update and notify referrer if exist
+        if referred_by != 0:
+            with get_conn() as conn:
+                conn.execute("UPDATE users SET referral_count = referral_count + 1 WHERE user_id = ?", (referred_by,))
+            
+            ref_lang = c.users.get_language(referred_by)
+            ref_msg = {
+                "uz": "🔔 <b>Yangi taklif!</b>\n\nSizning taklif havolangiz orqali yangi foydalanuvchi qo'shildi! (+1 do'st)",
+                "uz_cyr": "🔔 <b>Янги таклиф!</b>\n\nСизнинг таклиф ҳаволангиз орқали янги фойдаланувчи қўшилди! (+1 дўст)",
+                "ru": "🔔 <b>Новый реферал!</b>\n\nНовый пользователь зарегистрировался по вашей ссылке! (+1 друг)",
+                "en": "🔔 <b>New Referral!</b>\n\nA new user has registered using your invitation link! (+1 friend)"
+            }.get(ref_lang, "🔔 New Referral")
+            
+            try:
+                await bot.send_message(referred_by, ref_msg, parse_mode="HTML")
+            except Exception:
+                pass
+                
+            # Check milestones for referrer
+            new_ref_count = c.users.get_referred_count(referred_by)
+            milestones = {
+                5: {"days": 3, "label": "3 kunlik (Taklif)"},
+                10: {"days": 7, "label": "1 haftalik (Taklif)"},
+                30: {"days": 30, "label": "1 oylik (Taklif)"},
+                100: {"days": 180, "label": "6 oylik (Taklif)"},
+                200: {"days": 365, "label": "1 yillik (Taklif)"},
+            }
+            if new_ref_count in milestones:
+                reward = milestones[new_ref_count]
+                c.subscriptions.activate_user_premium(referred_by, reward["days"], reward["label"])
+                congrats = {
+                    "uz": f"🎉 <b>Tabriklaymiz! Siz {new_ref_count} ta do'stni taklif qildingiz!</b>\n\nSizga {reward['days']} kunlik bepul <b>💎 Premium</b> obuna faollashtirildi!",
+                    "uz_cyr": f"🎉 <b>Табриклаймиз! Сиз {new_ref_count} та дўстни таклиф қилдингиз!</b>\n\nСизга {reward['days']} кунлик бепул <b>💎 Премиум</b> обуна фаоллаштирилди!",
+                    "ru": f"🎉 <b>Поздравляем! Вы пригласили {new_ref_count} друзей!</b>\n\nВам активирована бесплатная подписка <b>💎 Premium</b> на {reward['days']} дней!",
+                    "en": f"🎉 <b>Congratulations! You have invited {new_ref_count} friends!</b>\n\nFree <b>💎 Premium</b> subscription for {reward['days']} days has been activated for you!"
+                }.get(ref_lang, "")
+                try:
+                    await bot.send_message(referred_by, congrats, parse_mode="HTML")
+                except Exception:
+                    pass
 
         # Adminga yangi foydalanuvchi haqida xabar
         if settings.admin_id:

@@ -11,7 +11,7 @@ from app.views import formatters
 from app.views.keyboards import (
     admin_banned_sites_kb, admin_panel_menu, back_button, blacklist_menu,
     group_mode_menu, groups_export_kb, main_menu, spam_filter_menu,
-    users_export_kb, admin_stats_kb,
+    users_export_kb, admin_stats_kb, cabinet_menu,
 )
 from app.views.texts import get_text
 
@@ -45,6 +45,156 @@ def register(dp: Dispatcher, c: Container) -> None:
             reply_markup=main_menu(is_owner(call), lang),
             parse_mode="HTML",
         )
+        await call.answer()
+
+    async def open_cabinet(call: CallbackQuery):
+        uid = call.from_user.id
+        lang = c.users.get_language(uid)
+        name = call.from_user.first_name or "Foydalanuvchi"
+        plan = c.subscriptions.get_user_plan(uid)
+        ref_count = c.users.get_referred_count(uid)
+
+        # Plan text formatting
+        if plan["plan"] == "premium":
+            label = plan.get("plan_label", "")
+            if label:
+                plan_lbl = f"💎 Premium ({label})"
+            else:
+                plan_lbl = "💎 Premium"
+            # Expires at
+            expires_at = plan.get("expires_at", "")
+            if expires_at:
+                plan_lbl += f" (Muddati: {expires_at})"
+        else:
+            plan_lbl = "🆓 Oddiy"
+
+        text = {
+            "uz": (
+                f"👤 <b>Shaxsiy Kabinet</b>\n\n"
+                f"👤 <b>Ism:</b> {name}\n"
+                f"🆔 <b>ID:</b> <code>{uid}</code>\n"
+                f"🎫 <b>Tarifingiz:</b> {plan_lbl}\n"
+                f"👥 <b>Taklif qilinganlar:</b> {ref_count} ta do'st\n\n"
+                f"<i>Quyidagi tugmalar yordamida hisobingizni boshqaring:</i>"
+            ),
+            "uz_cyr": (
+                f"👤 <b>Шахсий Кабинет</b>\n\n"
+                f"👤 <b>Исм:</b> {name}\n"
+                f"🆔 <b>ID:</b> <code>{uid}</code>\n"
+                f"🎫 <b>Тарифингиз:</b> {plan_lbl}\n"
+                f"👥 <b>Таклиф қилинганлар:</b> {ref_count} та дўст\n\n"
+                f"<i>Қуйидаги тугмалар ёрдамида ҳисобингизни бошқаринг:</i>"
+            ),
+            "ru": (
+                f"👤 <b>Личный Кабинет</b>\n\n"
+                f"👤 <b>Имя:</b> {name}\n"
+                f"🆔 <b>ID:</b> <code>{uid}</code>\n"
+                f"🎫 <b>Ваш тариф:</b> {plan_lbl}\n"
+                f"👥 <b>Приглашено друзей:</b> {ref_count}\n\n"
+                f"<i>Управляйте вашим аккаунтом с помощью кнопок ниже:</i>"
+            ),
+            "en": (
+                f"👤 <b>Personal Cabinet</b>\n\n"
+                f"👤 <b>Name:</b> {name}\n"
+                f"🆔 <b>ID:</b> <code>{uid}</code>\n"
+                f"🎫 <b>Your Tariff:</b> {plan_lbl}\n"
+                f"👥 <b>Invited Friends:</b> {ref_count}\n\n"
+                f"<i>Manage your account using the buttons below:</i>"
+            )
+        }.get(lang, "")
+
+        await call.message.edit_text(text, reply_markup=cabinet_menu(lang), parse_mode="HTML")
+        await call.answer()
+
+    async def my_groups(call: CallbackQuery):
+        uid = call.from_user.id
+        lang = c.users.get_language(uid)
+        groups = c.groups.active_by_user(uid)
+
+        title_text = {
+            "uz": "👥 <b>Siz qo'shgan guruhlar ro'yxati:</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+            "uz_cyr": "👥 <b>Сиз қўшган гуруҳлар рўйхати:</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+            "ru": "👥 <b>Список добавленных вами групп:</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n",
+            "en": "👥 <b>List of groups added by you:</b>\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        }.get(lang, "")
+
+        if not groups:
+            empty_text = {
+                "uz": "Siz hali botni birorta ham guruhga qo'shmagansiz.\n\nBotni guruhga qo'shib adminlik huquqini bering, shunda guruh himoyasi ishga tushadi.",
+                "uz_cyr": "Сиз ҳали ботни бирорта ҳам гуруҳга қўшмагансиз.\n\nБотни гуруҳга қўшиб админлик ҳуқуқини беринг, шунда гуруҳ ҳимояси ишга тушади.",
+                "ru": "Вы еще не добавили бота ни в одну группу.\n\nДобавьте бота в группу и выдайте ему права администратора, чтобы запустить защиту.",
+                "en": "You have not added the bot to any groups yet.\n\nAdd the bot to a group and grant admin privileges to enable group protection."
+            }.get(lang, "")
+            text = title_text + empty_text
+        else:
+            list_lines = []
+            for g in groups:
+                if g.username:
+                    list_lines.append(f"• {g.title} (@{g.username})")
+                else:
+                    list_lines.append(f"• {g.title}")
+            text = title_text + "\n".join(list_lines)
+
+        await call.message.edit_text(text, reply_markup=back_button("open_cabinet", lang), parse_mode="HTML")
+        await call.answer()
+
+    async def invite_friends(call: CallbackQuery):
+        uid = call.from_user.id
+        lang = c.users.get_language(uid)
+        ref_link = f"https://t.me/{settings.bot_username}?start=ref_{uid}"
+
+        text = {
+            "uz": (
+                f"🔗 <b>Do'stlarni taklif qilish dasturi</b>\n\n"
+                f"Do'stlaringizni botga taklif qiling va bepul <b>💎 Premium</b> obunani qo'lga kiriting!\n\n"
+                f"🎁 <b>Mukofotlar:</b>\n"
+                f"• 5 ta do'st — 3 kunlik Premium\n"
+                f"• 10 ta do'st — 1 haftalik Premium\n"
+                f"• 30 ta do'st — 1 oylik Premium\n"
+                f"• 100 ta do'st — 6 oylik Premium\n"
+                f"• 200 ta do'st — 1 yillik Premium\n\n"
+                f"🔗 <b>Sizning taklif havolangiz:</b>\n"
+                f"<code>{ref_link}</code>"
+            ),
+            "uz_cyr": (
+                f"🔗 <b>Дўстларни таклиф қилиш дастури</b>\n\n"
+                f"Дўстларингизни ботга таклиф қилинг va bepul <b>💎 Премиум</b> обунани қўлга киритинг!\n\n"
+                f"🎁 <b>Мукофотлар:</b>\n"
+                f"• 5 та дўст — 3 кунлик Премиум\n"
+                f"• 10 та дўст — 1 ҳафталик Премиум\n"
+                f"• 30 та дўст — 1 ойлик Премиум\n"
+                f"• 100 та дўст — 6 ойлик Премиум\n"
+                f"• 200 та дўст — 1 йиллик Премиум\n\n"
+                f"🔗 <b>Сизнинг таклиф ҳаволангиз:</b>\n"
+                f"<code>{ref_link}</code>"
+            ),
+            "ru": (
+                f"🔗 <b>Реферальная программа</b>\n\n"
+                f"Приглашайте друзей в бота и получайте бесплатную подписку <b>💎 Premium</b>!\n\n"
+                f"🎁 <b>Награды:</b>\n"
+                f"• 5 друзей — 3 дня Premium\n"
+                f"• 10 друзей — 1 неделя Premium\n"
+                f"• 30 друзей — 1 месяц Premium\n"
+                f"• 100 друзей — 6 месяцев Premium\n"
+                f"• 200 друзей — 1 год Premium\n\n"
+                f"🔗 <b>Ваша ссылка для приглашения:</b>\n"
+                f"<code>{ref_link}</code>"
+            ),
+            "en": (
+                f"🔗 <b>Referral Program</b>\n\n"
+                f"Invite friends to the bot and get free <b>💎 Premium</b> subscription!\n\n"
+                f"🎁 <b>Rewards:</b>\n"
+                f"• 5 friends — 3 days of Premium\n"
+                f"• 10 friends — 1 week of Premium\n"
+                f"• 30 friends — 1 month of Premium\n"
+                f"• 100 friends — 6 months of Premium\n"
+                f"• 200 friends — 1 year of Premium\n\n"
+                f"🔗 <b>Your Invitation Link:</b>\n"
+                f"<code>{ref_link}</code>"
+            )
+        }.get(lang, "")
+
+        await call.message.edit_text(text, reply_markup=back_button("open_cabinet", lang), parse_mode="HTML")
         await call.answer()
 
     # ─── Admin panel ─────────────────────────
@@ -425,3 +575,7 @@ def register(dp: Dispatcher, c: Container) -> None:
     dp.callback_query.register(gm_on, F.data == "gm_on")
     dp.callback_query.register(gm_off, F.data == "gm_off")
     dp.callback_query.register(gm_list, F.data == "gm_list")
+
+    dp.callback_query.register(open_cabinet, F.data == "open_cabinet")
+    dp.callback_query.register(my_groups, F.data == "my_groups")
+    dp.callback_query.register(invite_friends, F.data == "invite_friends")

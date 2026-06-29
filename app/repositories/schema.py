@@ -193,7 +193,10 @@ def init_schema() -> None:
         _add_column_if_not_exists(c, "user_settings", "filter_files", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "user_settings", "filter_nlp", "INTEGER DEFAULT 1")
         _add_column_if_not_exists(c, "groups", "invite_link", "TEXT DEFAULT ''")
-        # Kim qo'shganini bilish uchun — foydalanuvchi faqat o'zi qo'shgan guruhlarni ko'radi
         _add_column_if_not_exists(c, "groups", "added_by", "INTEGER DEFAULT 0")
         _add_column_if_not_exists(c, "users", "language", "TEXT DEFAULT 'uz'")
         _add_column_if_not_exists(c, "group_settings", "language", "TEXT DEFAULT 'uz'")
+        _add_column_if_not_exists(c, "users", "referred_by", "INTEGER DEFAULT 0")
+        _add_column_if_not_exists(c, "users", "referral_count", "INTEGER DEFAULT 0")
+        _add_column_if_not_exists(c, "user_subscriptions", "plan_label", "TEXT DEFAULT ''")
+        _add_column_if_not_exists(c, "group_subscriptions", "plan_label", "TEXT DEFAULT ''")

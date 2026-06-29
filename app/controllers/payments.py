@@ -322,7 +322,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             return
             
         # Activate Premium in database
-        c.subscriptions.activate_user_premium(target_id, plan["days"])
+        c.subscriptions.activate_user_premium(target_id, plan["days"], plan["label"])
         
         # Clear state
         await state.clear()

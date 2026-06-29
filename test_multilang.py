@@ -76,14 +76,23 @@ def test_localized_keyboards():
     kb_uz = keyboards.main_menu(is_admin_user=False, lang="uz")
     buttons_uz = [btn.text for row in kb_uz.inline_keyboard for btn in row]
     print(f"Main Menu Buttons (uz): {buttons_uz}")
-    assert "🚫 Spam Filter" in buttons_uz
+    assert "👤 Kabinet" in buttons_uz
     assert "📋 Qora Ro'yxat" in buttons_uz
     
     kb_ru = keyboards.main_menu(is_admin_user=False, lang="ru")
     buttons_ru = [btn.text for row in kb_ru.inline_keyboard for btn in row]
     print(f"Main Menu Buttons (ru): {buttons_ru}")
     assert "📋 Черный Список" in buttons_ru
-    assert "🌐 Сменить язык" in buttons_ru
+    assert "👤 Личный Кабинет" in buttons_ru
+    
+    # Test cabinet menu
+    kb_cab = keyboards.cabinet_menu(lang="uz")
+    buttons_cab = [btn.text for row in kb_cab.inline_keyboard for btn in row]
+    print(f"Cabinet Menu Buttons (uz): {buttons_cab}")
+    assert "🚫 Spam Filter" in buttons_cab
+    assert "📊 Tarixim" in buttons_cab
+    assert "👥 Guruhlarim" in buttons_cab
+    assert "🔗 Taklif havolasi" in buttons_cab
     
     # 2. Test Group settings keyboard
     filters = {"filter_links": True, "filter_files": True, "filter_nlp": True}
