@@ -592,6 +592,46 @@ def register(dp: Dispatcher, c: Container) -> None:
                 )
             return
 
+        # Check AI Assistant daily limits (2 for Free, 2000 for Premium)
+        plan = c.subscriptions.get_user_plan(uid)
+        limit = 2000 if plan["plan"] == "premium" else 2
+        usage_today = c.subscriptions.get_ai_usage_today(uid)
+
+        if usage_today >= limit:
+            ref_link = f"https://t.me/{settings.bot_username}?start=ref_{uid}"
+            text_limit = {
+                "uz": (
+                    f"⚠️ <b>Kunlik AI Maslahatchi limiti tugadi!</b>\n\n"
+                    f"Siz bugun {usage_today}/{limit} ta savol berdingiz.\n"
+                    f"Cheksiz savollar (kuniga 2000 ta) berish uchun Premium obunani faollashtiring yoki do'stlaringizni taklif qiling!\n\n"
+                    f"🎁 5 ta do'stingizni taklif qilsangiz, 3 kunlik Premium bepul beriladi!\n"
+                    f"🔗 <b>Taklif havolangiz:</b> <code>{ref_link}</code>"
+                ),
+                "uz_cyr": (
+                    f"⚠️ <b>Кунлик AI Маслаҳатчи лимити тугади!</b>\n\n"
+                    f"Сиз бугун {usage_today}/{limit} та савол бердингиз.\n"
+                    f"Чексиз саволлар (кунига 2000 та) бериш учун Премиум обунани фаоллаштиринг ёки дўстларингизни таклиф қилинг!\n\n"
+                    f"🎁 5 та дўстингизни таклиф қилсангиз, 3 кунлик Премиум бепул берилади!\n"
+                    f"🔗 <b>Таклиф ҳаволангиз:</b> <code>{ref_link}</code>"
+                ),
+                "ru": (
+                    f"⚠️ <b>Дневной лимит ИИ-Консультанта исчерпан!</b>\n\n"
+                    f"Вы сегодня задали {usage_today}/{limit} вопросов.\n"
+                    f"Для безлимитных вопросов (2000 в день) активируйте Premium или пригласите друзей!\n\n"
+                    f"🎁 Пригласите 5 друзей и получите 3 дня Premium бесплатно!\n"
+                    f"🔗 <b>Ваша ссылка для приглашения:</b> <code>{ref_link}</code>"
+                ),
+                "en": (
+                    f"⚠️ <b>Daily AI Assistant limit reached!</b>\n\n"
+                    f"You have asked {usage_today}/{limit} questions today.\n"
+                    f"For unlimited questions (2000/day), activate Premium or invite friends!\n\n"
+                    f"🎁 Invite 5 friends and get 3 days of Premium for free!\n"
+                    f"🔗 <b>Your Invitation Link:</b> <code>{ref_link}</code>"
+                )
+            }.get(lang, "")
+            await message.answer(text_limit, parse_mode="HTML")
+            return
+
         wait_text = {
             "uz": "🤖 <i>Maslahatchi javob tayyorlamoqda...</i>",
             "uz_cyr": "🤖 <i>Маслаҳатчи жавоб тайёрламоқда...</i>",
@@ -634,6 +674,7 @@ def register(dp: Dispatcher, c: Container) -> None:
             )
 
             response_text = await call_gemini_api(api_key, prompt)
+            c.subscriptions.increment_ai_usage(uid)
             try:
                 await wait.edit_text(response_text, parse_mode="Markdown")
             except Exception as tg_err:

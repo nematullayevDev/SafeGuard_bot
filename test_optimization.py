@@ -118,11 +118,18 @@ async def test_referral_system():
     ref_count = c.users.get_referred_count(999)
     assert ref_count == 1, "Referrer should have 1 referral"
     
-    # Test activate user premium with label
-    c.subscriptions.activate_user_premium(999, 7, "1 haftalik")
+    # Test user AI assistant limits (Free: 2 queries/day)
+    c.subscriptions.deactivate_user_premium(999)
     plan = c.subscriptions.get_user_plan(999)
-    assert plan["plan"] == "premium"
-    assert plan["plan_label"] == "1 haftalik"
+    assert plan["plan"] == "free"
+    
+    usage = c.subscriptions.get_ai_usage_today(999)
+    assert usage == 0
+    
+    c.subscriptions.increment_ai_usage(999)
+    c.subscriptions.increment_ai_usage(999)
+    usage = c.subscriptions.get_ai_usage_today(999)
+    assert usage == 2
     
     print("[OK] Referral system checks passed!")
 
