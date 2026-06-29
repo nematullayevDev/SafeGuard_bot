@@ -51,6 +51,14 @@ class DatabaseCursorWrapper:
     def __init__(self, cursor, is_pg=False):
         self.cursor = cursor
         self.is_pg = is_pg
+        self._lastrowid = None
+
+    @property
+    def lastrowid(self):
+        if self.is_pg:
+            return self._lastrowid
+        else:
+            return getattr(self.cursor, "lastrowid", None)
 
     def execute(self, sql, params=None):
         if self.is_pg:
@@ -92,6 +100,13 @@ class DatabaseCursorWrapper:
                 sql = sql.replace("added_by INTEGER", "added_by BIGINT")
                 sql = sql.replace("referred_by INTEGER", "referred_by BIGINT")
                 
+            tables_with_id = ["users", "blacklist", "scan_history", "warnings", "forensics", "banned_sites"]
+            append_returning = False
+            if sql.strip().upper().startswith("INSERT") and "RETURNING" not in sql.upper():
+                if any(table in sql.lower() for table in tables_with_id):
+                    sql += " RETURNING id"
+                    append_returning = True
+
             if params is not None:
                 # Convert list parameters to tuple for psycopg2 compatibility
                 if isinstance(params, list):
@@ -99,6 +114,14 @@ class DatabaseCursorWrapper:
                 self.cursor.execute(sql, params)
             else:
                 self.cursor.execute(sql)
+
+            if append_returning:
+                try:
+                    row = self.cursor.fetchone()
+                    if row:
+                        self._lastrowid = row[0]
+                except Exception:
+                    self._lastrowid = None
         else:
             if params is not None:
                 self.cursor.execute(sql, params)
