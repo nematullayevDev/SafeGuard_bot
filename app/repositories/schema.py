@@ -4,10 +4,19 @@ from app.repositories.seed_data import seed_banned_sites, seed_forensics
 
 
 def _add_column_if_not_exists(c, table: str, column: str, definition: str) -> None:
-    c.execute(f"PRAGMA table_info({table})")
-    columns = [row[1] for row in c.fetchall()]
-    if column not in columns:
-        c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+    if hasattr(c, "is_pg") and c.is_pg:
+        c.execute(
+            f"SELECT 1 FROM information_schema.columns "
+            f"WHERE table_name = '{table}' AND column_name = '{column}'"
+        )
+        if not c.fetchone():
+            definition = definition.replace("INTEGER", "BIGINT") if "id" in column else definition
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+    else:
+        c.execute(f"PRAGMA table_info({table})")
+        columns = [row[1] for row in c.fetchall()]
+        if column not in columns:
+            c.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def init_schema() -> None:
@@ -98,13 +107,42 @@ def init_schema() -> None:
         """)
 
 
-        # banned_sites — migrate legacy table missing UNIQUE constraint
-        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='banned_sites'")
-        if c.fetchone():
-            c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='banned_sites'")
-            sql = (c.fetchone()[0] or "").upper()
-            if "UNIQUE" not in sql:
-                c.execute("ALTER TABLE banned_sites RENAME TO banned_sites_old")
+        is_pg = hasattr(c, "is_pg") and c.is_pg
+        if is_pg:
+            c.execute("""
+                CREATE TABLE IF NOT EXISTS banned_sites (
+                    id SERIAL PRIMARY KEY,
+                    platform TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    added_at TEXT,
+                    is_new INTEGER DEFAULT 1,
+                    UNIQUE(platform, name)
+                )
+            """)
+        else:
+            # banned_sites — migrate legacy table missing UNIQUE constraint
+            c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='banned_sites'")
+            if c.fetchone():
+                c.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='banned_sites'")
+                sql = (c.fetchone()[0] or "").upper()
+                if "UNIQUE" not in sql:
+                    c.execute("ALTER TABLE banned_sites RENAME TO banned_sites_old")
+                    c.execute("""
+                        CREATE TABLE banned_sites (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            platform TEXT NOT NULL,
+                            name TEXT NOT NULL,
+                            added_at TEXT,
+                            is_new INTEGER DEFAULT 1,
+                            UNIQUE(platform, name)
+                        )
+                    """)
+                    c.execute("""
+                        INSERT OR IGNORE INTO banned_sites (platform, name, added_at, is_new)
+                        SELECT platform, name, added_at, is_new FROM banned_sites_old
+                    """)
+                    c.execute("DROP TABLE banned_sites_old")
+            else:
                 c.execute("""
                     CREATE TABLE banned_sites (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -115,22 +153,6 @@ def init_schema() -> None:
                         UNIQUE(platform, name)
                     )
                 """)
-                c.execute("""
-                    INSERT OR IGNORE INTO banned_sites (platform, name, added_at, is_new)
-                    SELECT platform, name, added_at, is_new FROM banned_sites_old
-                """)
-                c.execute("DROP TABLE banned_sites_old")
-        else:
-            c.execute("""
-                CREATE TABLE banned_sites (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    platform TEXT NOT NULL,
-                    name TEXT NOT NULL,
-                    added_at TEXT,
-                    is_new INTEGER DEFAULT 1,
-                    UNIQUE(platform, name)
-                )
-            """)
 
         seed_banned_sites(c)
         # seed_forensics(c)

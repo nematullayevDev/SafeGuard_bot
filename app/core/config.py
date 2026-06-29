@@ -17,6 +17,7 @@ class Settings:
     db_path: str
     base_dir: Path
     gemini_api_key: str | None = None
+    database_url: str | None = None
 
     # ─── Kanal sozlamalari ───────────────────────────
     # Majburiy obuna kanali. Misol: @SafeGuard_news
@@ -73,6 +74,7 @@ def _load() -> Settings:
         db_path=db_path,
         base_dir=base,
         gemini_api_key=os.getenv("GEMINI_API_KEY"),
+        database_url=os.getenv("DATABASE_URL"),
         channel_username=os.getenv("CHANNEL_USERNAME", "@SafeGuard_news"),
         channel_id=int(os.getenv("CHANNEL_ID", "0")),
     )
