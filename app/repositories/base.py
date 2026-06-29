@@ -58,6 +58,32 @@ class DatabaseCursorWrapper:
             sql = sql.replace("?", "%s")
             
             # 2. SQLite specific table translations for PG
+            if "INSERT OR IGNORE" in sql.upper():
+                # Replace INSERT OR IGNORE with ON CONFLICT DO NOTHING
+                sql = sql.replace("INSERT OR IGNORE", "INSERT")
+                if "UNIQUE" in sql.upper() or "banned_sites" in sql or "blacklist" in sql:
+                    # Append ON CONFLICT (columns) DO NOTHING, find appropriate target
+                    if "banned_sites" in sql:
+                        sql += " ON CONFLICT (platform, name) DO NOTHING"
+                    elif "blacklist" in sql:
+                        sql += " ON CONFLICT (value) DO NOTHING"
+                    else:
+                        sql += " ON CONFLICT DO NOTHING"
+                else:
+                    sql += " ON CONFLICT DO NOTHING"
+            elif "INSERT OR REPLACE" in sql.upper():
+                sql = sql.replace("INSERT OR REPLACE", "INSERT")
+                if "users" in sql:
+                    sql += " ON CONFLICT (user_id) DO UPDATE SET first_name = EXCLUDED.first_name, username = EXCLUDED.username, phone = EXCLUDED.phone, language = EXCLUDED.language"
+                elif "user_settings" in sql:
+                    sql += " ON CONFLICT (user_id) DO UPDATE SET spam_filter = EXCLUDED.spam_filter, group_mode = EXCLUDED.group_mode"
+                elif "group_settings" in sql:
+                    sql += " ON CONFLICT (chat_id) DO UPDATE SET warnings_limit = EXCLUDED.warnings_limit, custom_keywords = EXCLUDED.custom_keywords, whitelisted_domains = EXCLUDED.whitelisted_domains"
+                elif "groups" in sql:
+                    sql += " ON CONFLICT (chat_id) DO UPDATE SET title = EXCLUDED.title, username = EXCLUDED.username, member_count = EXCLUDED.member_count, is_active = EXCLUDED.is_active"
+                else:
+                    sql += " ON CONFLICT DO NOTHING"
+
             if "CREATE TABLE" in sql.upper():
                 sql = sql.replace("AUTOINCREMENT", "")
                 sql = sql.replace("user_id INTEGER", "user_id BIGINT")
