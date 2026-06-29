@@ -85,7 +85,8 @@ class DatabaseCursorWrapper:
                     sql += " ON CONFLICT DO NOTHING"
 
             if "CREATE TABLE" in sql.upper():
-                sql = sql.replace("AUTOINCREMENT", "")
+                sql = sql.replace("id INTEGER PRIMARY KEY AUTOINCREMENT", "id SERIAL PRIMARY KEY")
+                sql = sql.replace("id INTEGER PRIMARY KEY", "id SERIAL PRIMARY KEY")
                 sql = sql.replace("user_id INTEGER", "user_id BIGINT")
                 sql = sql.replace("chat_id INTEGER", "chat_id BIGINT")
                 sql = sql.replace("added_by INTEGER", "added_by BIGINT")
